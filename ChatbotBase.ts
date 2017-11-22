@@ -71,11 +71,13 @@ export abstract class VoiceAssistant {
         return promise;
     }
 
-    abstract loadPlatforms(): VoicePlatform[]
+    protected abstract loadPlatforms(): VoicePlatform[]
 
-    abstract loadTracker(): TrackingProvider[]
+    protected loadTracker(): TrackingProvider[] {
+        return []
+    }
 
-    abstract loadTranslations(): Translations
+    protected abstract loadTranslations(): Translations
 
     public abstract reply(input: Input): Output;
 

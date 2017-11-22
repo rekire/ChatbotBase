@@ -50,6 +50,9 @@ class VoiceAssistant {
         });
         return promise;
     }
+    loadTracker() {
+        return [];
+    }
     t(key, ...args) {
         let translation = this.translations[this.language][key];
         if (translation instanceof Array) {
