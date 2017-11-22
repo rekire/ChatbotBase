@@ -1,7 +1,7 @@
 # ChatbotBase
 A simple node.js framework to write chatbots for differnt platforms like Google Home and Amazon Alexa at once.
 
-##Basic example
+## Basic example
 
 Here is the full TypeScript code to write a skill/action supporting Alexa and the Google Assistant. This example
 welcomes you with a random phrase and gives the user the suggestion to say bye (on supported platforms here just Google
@@ -53,7 +53,7 @@ Assistant). This example supports multiple languages here German and English.
         }
     }
 
-##Tracking
+## Tracking
 The ChatbotBase also allows you to track the input of the user e.g. with chatbase. To use just just import the
 chatbaseplugin and overwrite the `loadTracker()` method like this:
 
@@ -61,7 +61,7 @@ chatbaseplugin and overwrite the `loadTracker()` method like this:
         return [new Chatbase('<your-api-key>', '<your-app-version>')];
     }
 
-##ToDos
+## ToDos
 * Tests
 * Coverage
 * Wiki how to create own platforms/tracking provider
