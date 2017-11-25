@@ -1,30 +1,30 @@
 {
-    "name": "chatbotbase",
-    "version": "0.1.0",
-    "description": "A simple node.js framework to write chatbots for differnt platforms like Google Home and Amazon Alexa at once.",
-    "main": "ChatbotBase.js",
-    "types": "ChatbotBase.d.ts",
-    "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/rekire/ChatbotBase.git"
-    },
-    "keywords": [
-        "chatbotbase",
-        "alexa",
-        "actions-on-google",
-        "google-home",
-        "google-assistant"
-    ],
-    "author": "René Kilczan <npm@reki.re>",
-    "license": "Apache-2.0",
-    "bugs": {
-        "url": "https://github.com/rekire/ChatbotBase/issues"
-    },
-    "homepage": "https://github.com/rekire/ChatbotBase#readme",
-    "dependencies": {
-        "sprintf-js": "^1.1.1"
-    }
+  "name": "chatbotbase",
+  "version": "0.2.0",
+  "description": "A simple node.js framework to write chatbots for differnt platforms like Google Home and Amazon Alexa at once.",
+  "main": "ChatbotBase.js",
+  "types": "ChatbotBase.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rekire/ChatbotBase.git"
+  },
+  "keywords": [
+    "chatbotbase",
+    "alexa",
+    "actions-on-google",
+    "google-home",
+    "google-assistant"
+  ],
+  "author": "René Kilczan <npm@reki.re>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/rekire/ChatbotBase/issues"
+  },
+  "homepage": "https://github.com/rekire/ChatbotBase#readme",
+  "dependencies": {
+    "sprintf-js": "^1.1.1"
+  }
 }
