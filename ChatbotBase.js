@@ -87,7 +87,7 @@ class VoiceAssistant {
     /**
      * Defines a plain text message as response. Should be handled by all platforms.
      * @param {string} message the plain text message.
-     * @returns {Message} the message object which should be added to the output.
+     * @returns {Reply} the message object which should be added to the output.
      */
     plainReply(message) {
         return {
@@ -97,6 +97,11 @@ class VoiceAssistant {
             debug: () => message
         };
     }
+    /**
+     * Defines a formatted text message as response. Should be handled by all platforms.
+     * @param {string} message the formatted text message.
+     * @returns {Reply} the message object which should be added to the output.
+     */
     formattedReply(message) {
         return {
             platform: '*',
@@ -105,6 +110,11 @@ class VoiceAssistant {
             debug: () => message
         };
     }
+    /**
+     * Creat a plain text suggestion for supported platforms.
+     * @param {string} label The label to click on.
+     * @returns {Suggestion}
+     */
     suggestion(label) {
         return {
             platform: '*',
@@ -164,27 +174,56 @@ exports.Input = Input;
  * The output message
  */
 class Output extends IOMessage {
+    /**
+     * The constructor of the output message object. This will use the current time an date and the input method text.
+     * @param {string} id The identifier of the message which comes from the platform to identify messages thrue the system.
+     * @param {string} userId The user identifier the same user in a conversation.
+     * @param {string} sessionId A session id which is used to identify if an intent was fired in the same or a different season.
+     * @param {string} language The language of the user in the [IETF language tag](https://en.wikipedia.org/wiki/IETF_language_tag) or at least the first two letters (also known as [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1)).
+     * @param {string} platform A readable representation of the platform where the message was entered. Like Google Home, Google Assistant, Amazon Alexa or Amazon FireTV.
+     * @param {string} intent If you don't analyse the raw messages of the user a platform like Dialogflow or Alexa will give you some intent to identify the intent of the user.
+     * @param {string} message The raw message of the user when given.
+     * @param {Context} context A map of the context for this conversation.
+     */
     constructor(id, userId, sessionId, platform, language, intent, message, context) {
         super(id, userId, sessionId, language, platform, new Date(), intent, InputMethod.text, message, context);
         this.replies = [];
         this.suggestions = [];
         this.expectAnswer = false;
     }
+    /**
+     * Add a reply to the output. Should be at least VoiceAssistant.plainReply().
+     * @param {Reply} reply The reply you want to add.
+     */
     addReply(reply) {
         this.replies.push(reply);
     }
+    /**
+     * Add a suggestion to the output.
+     * @param {Suggestion} suggestion The suggestion to add.
+     */
     addSuggestion(suggestion) {
         this.suggestions.push(suggestion);
     }
+    /**
+     * Add a retention message which will be send when setExpectAnswer() was set to true.
+     * @param {string} message The message which should be said after a platform specific timeout.
+     */
     setRetentionMessage(message) {
         this.retentionMessage = message;
     }
+    /**
+     * Set to `true` to indidate that you expect an answer and that this conversation should not end now.
+     * @param {boolean} answerExpected
+     */
     setExpectAnswer(answerExpected) {
         this.expectAnswer = answerExpected;
     }
 }
 exports.Output = Output;
-/** The input method the user used to start the current intent. */
+/**
+ * The input method the user used to start the current intent.
+ */
 var InputMethod;
 (function (InputMethod) {
     /** The input was made by voice. */
@@ -194,19 +233,22 @@ var InputMethod;
     /** The input was made by touch e.g. via a suggestion or a button on a card. */
     InputMethod[InputMethod["touch"] = 2] = "touch";
 })(InputMethod = exports.InputMethod || (exports.InputMethod = {}));
+/**
+ * The base class for any replies.
+ */
 class Reply {
 }
 exports.Reply = Reply;
+/**
+ *
+ */
 class Suggestion {
 }
 exports.Suggestion = Suggestion;
+/**
+ * This is the base class add support for a new platform.
+ */
 class VoicePlatform {
-    inject(translations) {
-        this.translations = translations;
-    }
-    t(key) {
-        return this.translations[this.input.language][key];
-    }
 }
 exports.VoicePlatform = VoicePlatform;
 //# sourceMappingURL=ChatbotBase.js.map

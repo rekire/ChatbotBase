@@ -138,7 +138,7 @@ export abstract class VoiceAssistant {
     /**
      * Defines a plain text message as response. Should be handled by all platforms.
      * @param {string} message the plain text message.
-     * @returns {Message} the message object which should be added to the output.
+     * @returns {Reply} the message object which should be added to the output.
      */
     protected plainReply(message: string): Reply {
         return <Reply>{
@@ -149,6 +149,11 @@ export abstract class VoiceAssistant {
         };
     }
 
+    /**
+     * Defines a formatted text message as response. Should be handled by all platforms.
+     * @param {string} message the formatted text message.
+     * @returns {Reply} the message object which should be added to the output.
+     */
     protected formattedReply(message: string): Reply {
         return <Reply>{
             platform: '*',
@@ -158,6 +163,11 @@ export abstract class VoiceAssistant {
         };
     }
 
+    /**
+     * Creat a plain text suggestion for supported platforms.
+     * @param {string} label The label to click on.
+     * @returns {Suggestion}
+     */
     protected suggestion(label: string) {
         return <Suggestion>{
             platform: '*',
@@ -251,6 +261,17 @@ export class Output extends IOMessage {
     retentionMessage: string;
     expectAnswer = false;
 
+    /**
+     * The constructor of the output message object. This will use the current time an date and the input method text.
+     * @param {string} id The identifier of the message which comes from the platform to identify messages thrue the system.
+     * @param {string} userId The user identifier the same user in a conversation.
+     * @param {string} sessionId A session id which is used to identify if an intent was fired in the same or a different season.
+     * @param {string} language The language of the user in the [IETF language tag](https://en.wikipedia.org/wiki/IETF_language_tag) or at least the first two letters (also known as [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1)).
+     * @param {string} platform A readable representation of the platform where the message was entered. Like Google Home, Google Assistant, Amazon Alexa or Amazon FireTV.
+     * @param {string} intent If you don't analyse the raw messages of the user a platform like Dialogflow or Alexa will give you some intent to identify the intent of the user.
+     * @param {string} message The raw message of the user when given.
+     * @param {Context} context A map of the context for this conversation.
+     */
     constructor(id: string,
                 userId: string,
                 sessionId: string,
@@ -262,24 +283,42 @@ export class Output extends IOMessage {
         super(id, userId, sessionId, language, platform, new Date(), intent, InputMethod.text, message, context);
     }
 
+    /**
+     * Add a reply to the output. Should be at least VoiceAssistant.plainReply().
+     * @param {Reply} reply The reply you want to add.
+     */
     addReply(reply: Reply) {
         this.replies.push(reply);
     }
 
+    /**
+     * Add a suggestion to the output.
+     * @param {Suggestion} suggestion The suggestion to add.
+     */
     addSuggestion(suggestion: Suggestion) {
         this.suggestions.push(suggestion);
     }
 
+    /**
+     * Add a retention message which will be send when setExpectAnswer() was set to true.
+     * @param {string} message The message which should be said after a platform specific timeout.
+     */
     setRetentionMessage(message: string) {
         this.retentionMessage = message;
     }
 
+    /**
+     * Set to `true` to indidate that you expect an answer and that this conversation should not end now.
+     * @param {boolean} answerExpected
+     */
     setExpectAnswer(answerExpected: boolean) {
         this.expectAnswer = answerExpected;
     }
 }
 
-/** The input method the user used to start the current intent. */
+/**
+ * The input method the user used to start the current intent.
+ */
 export enum InputMethod {
     /** The input was made by voice. */
     voice,
@@ -289,48 +328,100 @@ export enum InputMethod {
     touch
 }
 
+/**
+ * The base class for any replies.
+ */
 export abstract class Reply {
+    /**
+     * The platform id of the platform which created and support this kind of reply. Can be also `*` for some generic
+     * replies defined by the ChatbotBase like plain text replies.
+     */
     platform: string;
 
+    /**
+     * The type of the reply, so you can distinct what kind of reply this is.
+     */
     type: string;
 
+    /**
+     * Renders the reply for the target platform.
+     * @returns {any} The object which will be rendered by the platform.
+     */
     abstract render(): any
 
+    /**
+     * @returns {string} The plain text representation for debugging.
+     */
     abstract debug(): string
 }
 
+/**
+ *
+ */
 export abstract class Suggestion {
+    /**
+     * The platform id of the platform which created and support this kind of suggestion.
+     */
     platform: string;
 
+    /**
+     * Renders the suggestion for the target platform.
+     * @returns {any} The object which will be rendered by the platform.
+     */
     abstract render(): any;
 }
 
+/**
+ * This is the base class add support for a new platform.
+ */
 export abstract class VoicePlatform {
-    protected input: Input;
-    private translations: Translations;
+    /**
+     * @returns {string} A unique name to identify your platform. This is used to identify special formatted custom messages.
+     */
+    abstract platformId(): string;
 
-    inject(translations: Translations) {
-        this.translations = translations;
-    }
+    /**
+     * Will be invoked with the request body to check if this platform supports this kind of input.
+     * @param json The request body which should be checked.
+     * @returns `true` if the request is supported by this platform.
+     */
+    abstract isSupported(json: any): boolean;
 
-    protected t(key: string): string | string[] { // TODO verify usage
-        return this.translations[this.input.language][key];
-    }
-
+    /**
+     * Parse the request and returns the parsed input.
+     * @param body The request body of the incoming request.
+     * @returns {Input} The parsed input object.
+     */
     abstract parse(body: any): Input
 
-    abstract render(reply: Output): any
-
-    abstract isSupported(json: any)
-
-    abstract platformId(): string;
+    /**
+     * Render the output for this platform.
+     * @param {Output} output The output to render.
+     * @returns {any} The platform specific response.
+     */
+    abstract render(output: Output): any
 }
 
+/**
+ * Tracking interface of the ChatbotBase.
+ */
 export interface TrackingProvider {
+    /** The name of the tracking interface */
     name: string;
+    /** @deprecated */
     logging: boolean;
 
+    /**
+     * Track an input message.
+     * @param {Input} input The input message to be tracked.
+     * @returns {Promise<any>} A promise to make sure that this call can be made async.
+     */
     trackInput(input: Input): Promise<any>;
 
+    /**
+     * Track an output message.
+     * @param {Output} output The output message to be tracked.
+     * @returns {Promise<any>} A promise to make sure that this call can be made async.
+     */
     trackOutput(output: Output): Promise<any>;
 }
