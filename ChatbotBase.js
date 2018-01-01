@@ -23,47 +23,60 @@ class VoiceAssistant {
      */
     handle(json, response) {
         //console.log(JSON.stringify(json));
-        let output;
+        let selectedPlatform = null;
         const promise = new Promise((result, reject) => {
-            let handled = false;
-            let resp;
             this.platforms.forEach(platform => {
                 //console.log(platform.platformId() + " = " + platform.isSupported(json));
                 if (platform.isSupported(json)) {
+                    selectedPlatform = platform;
                     console.log("Detected platform " + platform.platformId());
                     const input = platform.parse(json);
                     this.trackers.forEach(tracker => tracker.trackInput(input));
                     this.language = input.language.substr(0, 2);
-                    output = this.reply(input);
-                    console.log('> ' + input.message);
-                    // TODO contact the replies to get two resulting for compatibility with other platforms
-                    for (let i = 0; i < output.replies.length; i++) {
-                        if (output.replies[i].platform === platform.platformId()) {
-                            console.log('< ' + output.replies[i].debug());
-                        }
+                    const reply = this.reply(input);
+                    // check if we got a promise or a direct answer
+                    if (reply.then !== undefined) {
+                        reply.then((output) => {
+                            this.logReply(platform, input, output);
+                            result(output);
+                        }).catch((error) => {
+                            reject(error);
+                        });
                     }
-                    console.log('  [' + output.suggestions.join('] [') + ']');
-                    handled = true;
-                    resp = platform.render(output);
+                    else {
+                        this.logReply(platform, input, reply);
+                        result(reply);
+                    }
                 }
             });
-            if (!handled) {
-                reject(resp);
-            }
-            else {
-                result(resp);
+            if (selectedPlatform === null) {
+                reject('Request not supported');
             }
         });
-        promise.then((resp) => {
+        promise.then((output) => {
             output.replies.forEach((reply) => {
                 if (reply.type === 'plain' && reply.platform === '*') {
                     output.message = reply.render();
                 }
             });
             this.trackers.forEach(tracker => tracker.trackOutput(output));
-            response.end(JSON.stringify(resp));
+            if (selectedPlatform !== null) {
+                response.end(JSON.stringify(selectedPlatform.render(output)));
+            }
+        }).catch((error) => {
+            console.log("CBB-Error: ", error);
         });
         return promise;
+    }
+    logReply(platform, input, output) {
+        console.log('> ' + input.message);
+        // TODO contact the replies to get two resulting for compatibility with other platforms
+        for (let i = 0; i < output.replies.length; i++) {
+            if (output.replies[i].platform === platform.platformId()) {
+                console.log('< ' + output.replies[i].debug().replace('\n', '\n< '));
+            }
+        }
+        console.log('  [' + output.suggestions.join('] [') + ']');
     }
     /** Override this method to choose the tracking platforms you want. By default this is an empty list. */
     loadTracker() {
@@ -160,6 +173,24 @@ exports.IOMessage = IOMessage;
  * The normalized message you got from the platform which could parse the request.
  */
 class Input extends IOMessage {
+    /**
+     * The constructor of the message object.
+     * @param {string} id The identifier of the message which comes from the platform to identify messages thrue the system.
+     * @param {string} userId The user identifier the same user in a conversation.
+     * @param {string} sessionId A session id which is used to identify if an intent was fired in the same or a different season.
+     * @param {string} language The language of the user in the [IETF language tag](https://en.wikipedia.org/wiki/IETF_language_tag) or at least the first two letters (also known as [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1)).
+     * @param {string} platform A readable representation of the platform where the message was entered. Like Google Home, Google Assistant, Amazon Alexa or Amazon FireTV.
+     * @param {Date} time The time when the message was entered if the input has not this field use the current time. This field can be used in analytics to track the response time.
+     * @param {string} intent If you don't analyse the raw messages of the user a platform like Dialogflow or Alexa will give you some intent to identify the intent of the user.
+     * @param {InputMethod} inputMethod The input method of the user like `Voice`, `Text` or `Touch`, if you don't know it use the most likely one.
+     * @param {string} message The raw message of the user when given.
+     * @param {Context} context A map of the context for this conversation.
+     * @param {string} accessToken The optional access token of the request.
+     */
+    constructor(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context, accessToken) {
+        super(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context);
+        this.accessToken = accessToken;
+    }
     /**
      * Create the output message based on this input message. This will copy the message id (and adds a ".reply"
      * suffix), userId, sessionId, platform, language, intent and the context. The message will be set to an empty

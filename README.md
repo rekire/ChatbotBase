@@ -25,7 +25,7 @@ Here is the full TypeScript code to write a skill/action supporting Alexa and th
 welcomes you with a random phrase and gives the user the suggestion to say bye (on supported platforms here just Google
 Assistant). This example supports multiple languages here German and English.
 
-```javascript
+```typescript
 import {Input, Output, VoiceAssistant, VoicePlatform, Translations} from 'chatbotbase';
 import {Dialogflow} from 'chatbotbase-dialogflowplatform';
 import {Alexa} from 'chatbotbase-alexaplatform';

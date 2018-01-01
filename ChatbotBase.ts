@@ -55,49 +55,64 @@ export abstract class VoiceAssistant {
      */
     public handle(json: any, response: any): Promise<Response> {
         //console.log(JSON.stringify(json));
-        let output;
-        const promise = new Promise<never>((result, reject) => {
-            let handled = false;
-            let resp;
+        let selectedPlatform: VoicePlatform | null = null;
+        const promise = new Promise<any>((result, reject) => {
             this.platforms.forEach(platform => {
                 //console.log(platform.platformId() + " = " + platform.isSupported(json));
                 if(platform.isSupported(json)) {
+                    selectedPlatform = platform;
+
                     console.log("Detected platform " + platform.platformId());
                     const input = platform.parse(json);
 
                     this.trackers.forEach(tracker => tracker.trackInput(input));
 
                     this.language = input.language.substr(0, 2);
-                    output = this.reply(input);
-                    console.log('> ' + input.message);
-                    // TODO contact the replies to get two resulting for compatibility with other platforms
-                    for(let i = 0; i < output.replies.length; i++) {
-                        if(output.replies[i].platform === platform.platformId()) {
-                            console.log('< ' + output.replies[i].debug())
-                        }
-                    }
-                    console.log('  [' + output.suggestions.join('] [') + ']');
-                    handled = true;
 
-                    resp = platform.render(output);
+                    const reply = this.reply(input);
+                    // check if we got a promise or a direct answer
+                    if((<Promise<Output>>reply).then !== undefined) {
+                        (<Promise<Output>>reply).then((output) => {
+                            this.logReply(platform, input, output);
+                            result(output);
+                        }).catch((error) => {
+                            reject(error);
+                        });
+                    } else {
+                        this.logReply(platform, input, <Output>reply);
+                        result(reply);
+                    }
                 }
             });
-            if(!handled) {
-                reject(resp);
-            } else {
-                result(resp);
+            if(selectedPlatform === null) {
+                reject('Request not supported');
             }
         });
-        promise.then((resp) => {
+        promise.then((output) => {
             output.replies.forEach((reply) => {
                 if(reply.type === 'plain' && reply.platform === '*') {
                     output.message = reply.render();
                 }
             });
             this.trackers.forEach(tracker => tracker.trackOutput(output));
-            response.end(JSON.stringify(resp));
+            if(selectedPlatform !== null) {
+                response.end(JSON.stringify(selectedPlatform.render(output)));
+            }
+        }).catch((error) => {
+            console.log("CBB-Error: ", error)
         });
         return promise;
+    }
+
+    private logReply(platform: VoicePlatform, input: Input, output: Output) {
+        console.log('> ' + input.message);
+        // TODO contact the replies to get two resulting for compatibility with other platforms
+        for(let i = 0; i < output.replies.length; i++) {
+            if(output.replies[i].platform === platform.platformId()) {
+                console.log('< ' + output.replies[i].debug().replace('\n', '\n< '))
+            }
+        }
+        console.log('  [' + output.suggestions.join('] [') + ']');
     }
 
     /** Callback to load the supported platforms your implementation. */
@@ -114,7 +129,7 @@ export abstract class VoiceAssistant {
     /**
      * This function generates the output message which will be used for rendering the output and the tracking providers.
      */
-    public abstract reply(input: Input): Output;
+    public abstract reply(input: Input): Output | Promise<Output>;
 
     // Translations support
     private translations: Translations;
@@ -242,6 +257,40 @@ export abstract class IOMessage {
  * The normalized message you got from the platform which could parse the request.
  */
 export class Input extends IOMessage {
+    /**
+     * The optional access token of the request. Only set when a account binding is used.
+     */
+    accessToken: string;
+
+    /**
+     * The constructor of the message object.
+     * @param {string} id The identifier of the message which comes from the platform to identify messages thrue the system.
+     * @param {string} userId The user identifier the same user in a conversation.
+     * @param {string} sessionId A session id which is used to identify if an intent was fired in the same or a different season.
+     * @param {string} language The language of the user in the [IETF language tag](https://en.wikipedia.org/wiki/IETF_language_tag) or at least the first two letters (also known as [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1)).
+     * @param {string} platform A readable representation of the platform where the message was entered. Like Google Home, Google Assistant, Amazon Alexa or Amazon FireTV.
+     * @param {Date} time The time when the message was entered if the input has not this field use the current time. This field can be used in analytics to track the response time.
+     * @param {string} intent If you don't analyse the raw messages of the user a platform like Dialogflow or Alexa will give you some intent to identify the intent of the user.
+     * @param {InputMethod} inputMethod The input method of the user like `Voice`, `Text` or `Touch`, if you don't know it use the most likely one.
+     * @param {string} message The raw message of the user when given.
+     * @param {Context} context A map of the context for this conversation.
+     * @param {string} accessToken The optional access token of the request.
+     */
+    constructor(id: string,
+                userId: string,
+                sessionId: string,
+                language: string,
+                platform: string,
+                time: Date,
+                intent: string,
+                inputMethod: InputMethod,
+                message: string,
+                context: Context,
+                accessToken: string) {
+        super(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context);
+        this.accessToken = accessToken;
+    }
+
     /**
      * Create the output message based on this input message. This will copy the message id (and adds a ".reply"
      * suffix), userId, sessionId, platform, language, intent and the context. The message will be set to an empty
