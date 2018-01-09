@@ -1,5 +1,4 @@
-/** This is just a polyfill and will be removed in later release */
-declare function require(path: string): any;
+///<reference path="node_modules/@types/node/index.d.ts"/>
 
 /**
  * The context is basically a map with a string as key holding any possible value.

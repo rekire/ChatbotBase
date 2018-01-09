@@ -1,4 +1,5 @@
 "use strict";
+///<reference path="node_modules/@types/node/index.d.ts"/>
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
  * The abstract base class for your actual implementation.
