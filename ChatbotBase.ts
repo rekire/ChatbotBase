@@ -46,14 +46,15 @@ export abstract class VoiceAssistant {
     /**
      * The handler of the platform, this will render all replies, suggestions and send the platform specific response
      * out. This will also invoke the trackers async using a promise.
-     * @param json the raw input of the webhook.
+     * @param request the incoming request.
      * @param response Is a object where the `end()` function will be called to send the response to the calling client.
      * To be honest this does not really make sense and will be changed later to a simple callback.
-     * @returns {Promise<Response>} A promise which you should return to allow closing the connection and let the
+     * @returns {Promise<Reply>} A promise which you should return to allow closing the connection and let the
      * process life until the tracking code ends.
      */
-    public handle(json: any, response: any): Promise<Response> {
-        //console.log(JSON.stringify(json));
+    public handle(request: any, response: any): Promise<Reply> {
+        const rawRequest = request.rawBody;
+        const json = request.body;
         let selectedPlatform: VoicePlatform | null = null;
         const promise = new Promise<any>((result, reject) => {
             this.platforms.forEach(platform => {
@@ -64,23 +65,33 @@ export abstract class VoiceAssistant {
                     console.log("Detected platform " + platform.platformId());
                     const input = platform.parse(json);
 
+                    const verification = platform.verify(<VerifyDataHolder>{
+                        rawRequest: () => rawRequest,
+                        header: (name) => request.header(name)
+                    }, response);
+
+                    if(verification === false) {
+                        return;
+                    }
+
                     this.trackers.forEach(tracker => tracker.trackInput(input));
 
                     this.language = input.language.substr(0, 2);
 
                     const reply = this.reply(input);
-                    // check if we got a promise or a direct answer
-                    if((<Promise<Output>>reply).then !== undefined) {
-                        (<Promise<Output>>reply).then((output) => {
+
+                    Promise.all([verification, reply]).then((values) => {
+                        const verificationStatus = values[0];
+                        if(verificationStatus) {
+                            const output = values[1];
                             this.logReply(platform, input, output);
                             result(output);
-                        }).catch((error) => {
-                            reject(error);
-                        });
-                    } else {
-                        this.logReply(platform, input, <Output>reply);
-                        result(reply);
-                    }
+                        } else {
+                            reject('Verification failed');
+                        }
+                    }).catch((error) => {
+                        reject(error);
+                    });
                 }
             });
             if(selectedPlatform === null) {
@@ -404,7 +415,7 @@ export abstract class Reply {
 }
 
 /**
- *
+ * A suggestion which should be shown the user.
  */
 export abstract class Suggestion {
     /**
@@ -448,6 +459,18 @@ export abstract class VoicePlatform {
      * @returns {any} The platform specific response.
      */
     abstract render(output: Output): any
+
+    /**
+     * The verify callback, here you can validate the request and optional write a response out in the error case
+     * directly. When the implementation returns a promise the response will just be written out in the good case, when
+     * using a boolean return value the handler won't be called. In good case the response will be written out as usual.
+     * @param {VerifyDataHolder} request
+     * @param response
+     * @returns {Promise<boolean> | boolean}
+     */
+    verify(request: VerifyDataHolder, response: any): Promise<boolean> | boolean {
+        return true; // the default implementation accepts all requests.
+    }
 }
 
 /**
@@ -472,4 +495,21 @@ export interface TrackingProvider {
      * @returns {Promise<any>} A promise to make sure that this call can be made async.
      */
     trackOutput(output: Output): Promise<any>;
+}
+
+/**
+ * Interface for accessing the raw request and the request data.
+ */
+export interface VerifyDataHolder {
+    /**
+     * @returns {string} the raw request data.
+     */
+    rawRequest(): string;
+
+    /**
+     * Provides a given http request header value.
+     * @param {string} name the header you are interested in.
+     * @returns {string} the value of the header.
+     */
+    header(name: string): string;
 }
