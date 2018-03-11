@@ -30,11 +30,7 @@ import {Input, Output, VoiceAssistant, VoicePlatform, Translations} from 'chatbo
 import {Dialogflow} from 'chatbotbase-dialogflowplatform';
 import {Alexa} from 'chatbotbase-alexaplatform';
 
-export class CSCRM extends VoiceAssistant {
-    constructor() {
-        super();
-    }
-
+export class MyChatBot extends VoiceAssistant {
     loadPlatforms(): VoicePlatform[] {
         return [new Dialogflow(), new Alexa()];
     }
@@ -44,13 +40,13 @@ export class CSCRM extends VoiceAssistant {
         switch(input.intent) {
         case 'LaunchRequest':
         case 'Default Welcome Intent':
-            reply.addMessage(this.plainMessage(this.t('WELCOME')));
+            reply.addReply(this.plainReply(this.t('WELCOME')));
             reply.addSuggestion(this.suggestion(this.t('BYE')));
             reply.setExpectAnswer(true);
             break;
         case 'Exit':
         case 'SessionEndedRequest':
-            reply.addMessage(this.plainMessage(this.t('STOP_MESSAGE')));
+            reply.addReply(this.plainReply(this.t('STOP_MESSAGE')));
             break;
         }
         return reply;
@@ -77,7 +73,7 @@ export class CSCRM extends VoiceAssistant {
 The ChatbotBase also allows you to track the input of the user e.g. with chatbase. To use just just import the
 chatbaseplugin and overwrite the `loadTracker()` method like this:
 
-```javascript
+```typescript
 loadTracker(): TrackingProvider[] {
     return [new Chatbase('<your-api-key>', '<your-app-version>')];
 }
