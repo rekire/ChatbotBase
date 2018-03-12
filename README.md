@@ -1,12 +1,15 @@
 # ChatbotBase
 A simple node.js framework to write chatbots for differnt platforms like Google Home and Amazon Alexa at once.
 
+  [![NPM Version][npm-image]][npm-url]
+  [![NPM Downloads][downloads-image]][downloads-url]
+  
 ## Usage
 
 In order to use this library you need to install the `chatbotbase` module and of cause the platforms you want to support.
 Currently are the following platforms supported:
-- Google Assistant and Google Home via Dialogflow: `chatbotbase-dialogflowplatform`
-- Amazon Alexa: `chatbotbase-alexaplatform`
+- Google Assistant and Google Home via Dialogflow: [`chatbotbase-dialogflowplatform`][dialogflowplatform]
+- Amazon Alexa: [`chatbotbase-alexaplatform`][alexaplatform]
 
 If you want to support both platforms use this commands:
 
@@ -79,7 +82,22 @@ loadTracker(): TrackingProvider[] {
 }
 ```
 
+Currently there are implementation the following tracker:
+ - [Chatbase][chatbase-homepage]: [ChatbotBase-ChatbasePlugin][chatbaseplugin]
+
 ## ToDos
 * Tests
 * Coverage
 * Wiki how to create own platforms/tracking provider
+
+## License
+  [Apache 2.0](LICENSE)
+
+[npm-image]: https://img.shields.io/npm/v/chatbotbase.svg
+[npm-url]: https://npmjs.org/package/chatbotbase
+[downloads-image]: https://img.shields.io/npm/dm/chatbotbase.svg
+[downloads-url]: https://npmjs.org/package/chatbotbase
+[dialogflowplatform]: https://github.com/rekire/ChatbotBase-DialogflowPlatform
+[alexaplatform]: https://github.com/rekire/ChatbotBase-AlexaPlatform
+[chatbase-homepage]: https://chatbase.com/welcome
+[chatbaseplugin]: https://github.com/rekire/ChatbotBase-ChatbasePlugin
