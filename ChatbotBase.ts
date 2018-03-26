@@ -458,7 +458,7 @@ export abstract class VoicePlatform {
      * @param {Output} output The output to render.
      * @returns {any} The platform specific response.
      */
-    abstract render(output: Output): any
+    abstract render(output: Output): any;
 
     /**
      * The verify callback, here you can validate the request and optional write a response out in the error case
@@ -471,6 +471,16 @@ export abstract class VoicePlatform {
     verify(request: VerifyDataHolder, response: any): Promise<boolean> | boolean {
         return true; // the default implementation accepts all requests.
     }
+
+    /**
+     * Ask for permission to access some data e.g. the location or the name of the user.
+     * @param {string} reason The reason which should been told the user why you are asking for this permission(s).
+     * @param {VoicePermission|string|(VoicePermission|string)[]} permissions ask for a predefined VoicePermission or a
+     * custom string or an array of them which has to been supported by the target platform.
+     * @returns {Reply|undefined} returns the Reply with the permission request on supported platforms or undefined if
+     * there is at least one unsupported permission in the request of the list of permissions is empty.
+     */
+    abstract requestPermission(reason: string, permissions: VoicePermission | string | (VoicePermission | string)[]): Reply | undefined;
 }
 
 /**
@@ -512,4 +522,22 @@ export interface VerifyDataHolder {
      * @returns {string} the value of the header.
      */
     header(name: string): string;
+}
+
+/**
+ * Predefined permissions which should be relevant for the most platforms. Check also the documentation of the actual
+ * implementation how to get the requested data.
+ */
+export enum VoicePermission {
+    /** The exact position of the user e.g. the GPS position. */
+    ExactPosition,
+    /** The in the profile saved position of the user mostly the zip code and the country. */
+    RegionalPosition,
+    /** The name of the user. */
+    UserName,
+    // Will be added in a later release for Alexa
+    /** Read the to do list. */
+    //ReadToDos,
+    /** Write the to do list. */
+    //WriteToDos,
 }

@@ -1,24 +1,14 @@
 "use strict";
 ///<reference path="node_modules/@types/node/index.d.ts"/>
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 /**
  * The abstract base class for your actual implementation.
  */
-var VoiceAssistant = (function () {
+class VoiceAssistant {
     /**
      * The constructor loads the translations, platforms and the optional tracker.
      */
-    function VoiceAssistant() {
+    constructor() {
         this.translations = this.loadTranslations();
         this.platforms = this.loadPlatforms();
         this.trackers = this.loadTracker();
@@ -32,39 +22,38 @@ var VoiceAssistant = (function () {
      * @returns {Promise<Reply>} A promise which you should return to allow closing the connection and let the
      * process life until the tracking code ends.
      */
-    VoiceAssistant.prototype.handle = function (request, response) {
-        var _this = this;
-        var rawRequest = request.rawBody;
-        var json = request.body;
-        var selectedPlatform = null;
-        var promise = new Promise(function (result, reject) {
-            _this.platforms.forEach(function (platform) {
+    handle(request, response) {
+        const rawRequest = request.rawBody;
+        const json = request.body;
+        let selectedPlatform = null;
+        const promise = new Promise((result, reject) => {
+            this.platforms.forEach(platform => {
                 //console.log(platform.platformId() + " = " + platform.isSupported(json));
                 if (platform.isSupported(json)) {
                     selectedPlatform = platform;
                     console.log("Detected platform " + platform.platformId());
-                    var input_1 = platform.parse(json);
-                    var verification = platform.verify({
-                        rawRequest: function () { return rawRequest; },
-                        header: function (name) { return request.header(name); }
+                    const input = platform.parse(json);
+                    const verification = platform.verify({
+                        rawRequest: () => rawRequest,
+                        header: (name) => request.header(name)
                     }, response);
                     if (verification === false) {
                         return;
                     }
-                    _this.trackers.forEach(function (tracker) { return tracker.trackInput(input_1); });
-                    _this.language = input_1.language.substr(0, 2);
-                    var reply = _this.reply(input_1);
-                    Promise.all([verification, reply]).then(function (values) {
-                        var verificationStatus = values[0];
+                    this.trackers.forEach(tracker => tracker.trackInput(input));
+                    this.language = input.language.substr(0, 2);
+                    const reply = this.reply(input);
+                    Promise.all([verification, reply]).then((values) => {
+                        const verificationStatus = values[0];
                         if (verificationStatus) {
-                            var output = values[1];
-                            _this.logReply(platform, input_1, output);
+                            const output = values[1];
+                            this.logReply(platform, input, output);
                             result(output);
                         }
                         else {
                             reject('Verification failed');
                         }
-                    })["catch"](function (error) {
+                    }).catch((error) => {
                         reject(error);
                     });
                 }
@@ -73,100 +62,95 @@ var VoiceAssistant = (function () {
                 reject('Request not supported');
             }
         });
-        promise.then(function (output) {
-            output.replies.forEach(function (reply) {
+        promise.then((output) => {
+            output.replies.forEach((reply) => {
                 if (reply.type === 'plain' && reply.platform === '*') {
                     output.message = reply.render();
                 }
             });
-            _this.trackers.forEach(function (tracker) { return tracker.trackOutput(output); });
+            this.trackers.forEach(tracker => tracker.trackOutput(output));
             if (selectedPlatform !== null) {
                 response.end(JSON.stringify(selectedPlatform.render(output)));
             }
-        })["catch"](function (error) {
+        }).catch((error) => {
             console.log("CBB-Error: ", error);
         });
         return promise;
-    };
-    VoiceAssistant.prototype.logReply = function (platform, input, output) {
+    }
+    logReply(platform, input, output) {
         console.log('> ' + input.message);
         // TODO contact the replies to get two resulting for compatibility with other platforms
-        for (var i = 0; i < output.replies.length; i++) {
+        for (let i = 0; i < output.replies.length; i++) {
             if (output.replies[i].platform === platform.platformId()) {
                 console.log('< ' + output.replies[i].debug().replace('\n', '\n< '));
             }
         }
         console.log('  [' + output.suggestions.join('] [') + ']');
-    };
+    }
     /** Override this method to choose the tracking platforms you want. By default this is an empty list. */
-    VoiceAssistant.prototype.loadTracker = function () {
+    loadTracker() {
         return [];
-    };
+    }
     /**
      * This translates a key to the actual translation filling their argument if any.
      * @param {string} key The key of the translation.
      * @param args The var args of the optional placeholders.
      * @returns {string} containing the actual string.
      */
-    VoiceAssistant.prototype.t = function (key) {
-        var args = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            args[_i - 1] = arguments[_i];
-        }
-        var translation = this.translations[this.language][key];
+    t(key, ...args) {
+        let translation = this.translations[this.language][key];
         if (translation instanceof Array) {
             translation = translation[Math.floor(Math.random() * translation.length)];
         }
-        var newArg = [translation];
-        args.forEach(function (arg) { return newArg.push(arg); });
+        const newArg = [translation];
+        args.forEach(arg => newArg.push(arg));
         return VoiceAssistant.sprintf.sprintf.apply(this, newArg);
-    };
+    }
     /**
      * Defines a plain text message as response. Should be handled by all platforms.
      * @param {string} message the plain text message.
      * @returns {Reply} the message object which should be added to the output.
      */
-    VoiceAssistant.prototype.plainReply = function (message) {
+    plainReply(message) {
         return {
             platform: '*',
             type: 'plain',
-            render: function () { return message; },
-            debug: function () { return message; }
+            render: () => message,
+            debug: () => message
         };
-    };
+    }
     /**
      * Defines a formatted text message as response. Should be handled by all platforms.
      * @param {string} message the formatted text message.
      * @returns {Reply} the message object which should be added to the output.
      */
-    VoiceAssistant.prototype.formattedReply = function (message) {
+    formattedReply(message) {
         return {
             platform: '*',
             type: 'formatted',
-            render: function () { return message; },
-            debug: function () { return message; }
+            render: () => message,
+            debug: () => message
         };
-    };
+    }
     /**
      * Creat a plain text suggestion for supported platforms.
      * @param {string} label The label to click on.
      * @returns {Suggestion}
      */
-    VoiceAssistant.prototype.suggestion = function (label) {
+    suggestion(label) {
         return {
             platform: '*',
-            render: function () { return label; },
-            toString: function () { return label; }
+            render: () => label,
+            toString: () => label
         };
-    };
-    VoiceAssistant.sprintf = require('sprintf-js');
-    return VoiceAssistant;
-}());
+    }
+}
+VoiceAssistant.sprintf = require('sprintf-js');
 exports.VoiceAssistant = VoiceAssistant;
 /**
  * The abstract base class for input and output messages.
  */
-var IOMessage = (function () {
+class IOMessage {
     /**
      * The constructor of the message object.
      * @param {string} id The identifier of the message which comes from the platform to identify messages thrue the system.
@@ -180,7 +164,7 @@ var IOMessage = (function () {
      * @param {string} message The raw message of the user when given.
      * @param {Context} context A map of the context for this conversation.
      */
-    function IOMessage(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context) {
+    constructor(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context) {
         this.id = id;
         this.userId = userId;
         this.sessionId = sessionId;
@@ -192,14 +176,12 @@ var IOMessage = (function () {
         this.message = message;
         this.context = context;
     }
-    return IOMessage;
-}());
+}
 exports.IOMessage = IOMessage;
 /**
  * The normalized message you got from the platform which could parse the request.
  */
-var Input = (function (_super) {
-    __extends(Input, _super);
+class Input extends IOMessage {
     /**
      * The constructor of the message object.
      * @param {string} id The identifier of the message which comes from the platform to identify messages thrue the system.
@@ -214,27 +196,24 @@ var Input = (function (_super) {
      * @param {Context} context A map of the context for this conversation.
      * @param {string} accessToken The optional access token of the request.
      */
-    function Input(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context, accessToken) {
-        var _this = _super.call(this, id, userId, sessionId, language, platform, time, intent, inputMethod, message, context) || this;
-        _this.accessToken = accessToken;
-        return _this;
+    constructor(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context, accessToken) {
+        super(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context);
+        this.accessToken = accessToken;
     }
     /**
      * Create the output message based on this input message. This will copy the message id (and adds a ".reply"
      * suffix), userId, sessionId, platform, language, intent and the context. The message will be set to an empty
      * string.
      */
-    Input.prototype.reply = function () {
+    reply() {
         return new Output(this.id + '.reply', this.userId, this.sessionId, this.platform, this.language, this.intent, "", this.context);
-    };
-    return Input;
-}(IOMessage));
+    }
+}
 exports.Input = Input;
 /**
  * The output message
  */
-var Output = (function (_super) {
-    __extends(Output, _super);
+class Output extends IOMessage {
     /**
      * The constructor of the output message object. This will use the current time an date and the input method text.
      * @param {string} id The identifier of the message which comes from the platform to identify messages thrue the system.
@@ -246,43 +225,41 @@ var Output = (function (_super) {
      * @param {string} message The raw message of the user when given.
      * @param {Context} context A map of the context for this conversation.
      */
-    function Output(id, userId, sessionId, platform, language, intent, message, context) {
-        var _this = _super.call(this, id, userId, sessionId, language, platform, new Date(), intent, InputMethod.text, message, context) || this;
-        _this.replies = [];
-        _this.suggestions = [];
-        _this.expectAnswer = false;
-        return _this;
+    constructor(id, userId, sessionId, platform, language, intent, message, context) {
+        super(id, userId, sessionId, language, platform, new Date(), intent, InputMethod.text, message, context);
+        this.replies = [];
+        this.suggestions = [];
+        this.expectAnswer = false;
     }
     /**
      * Add a reply to the output. Should be at least VoiceAssistant.plainReply().
      * @param {Reply} reply The reply you want to add.
      */
-    Output.prototype.addReply = function (reply) {
+    addReply(reply) {
         this.replies.push(reply);
-    };
+    }
     /**
      * Add a suggestion to the output.
      * @param {Suggestion} suggestion The suggestion to add.
      */
-    Output.prototype.addSuggestion = function (suggestion) {
+    addSuggestion(suggestion) {
         this.suggestions.push(suggestion);
-    };
+    }
     /**
      * Add a retention message which will be send when setExpectAnswer() was set to true.
      * @param {string} message The message which should be said after a platform specific timeout.
      */
-    Output.prototype.setRetentionMessage = function (message) {
+    setRetentionMessage(message) {
         this.retentionMessage = message;
-    };
+    }
     /**
      * Set to `true` to indidate that you expect an answer and that this conversation should not end now.
      * @param {boolean} answerExpected
      */
-    Output.prototype.setExpectAnswer = function (answerExpected) {
+    setExpectAnswer(answerExpected) {
         this.expectAnswer = answerExpected;
-    };
-    return Output;
-}(IOMessage));
+    }
+}
 exports.Output = Output;
 /**
  * The input method the user used to start the current intent.
@@ -299,27 +276,19 @@ var InputMethod;
 /**
  * The base class for any replies.
  */
-var Reply = (function () {
-    function Reply() {
-    }
-    return Reply;
-}());
+class Reply {
+}
 exports.Reply = Reply;
 /**
  * A suggestion which should be shown the user.
  */
-var Suggestion = (function () {
-    function Suggestion() {
-    }
-    return Suggestion;
-}());
+class Suggestion {
+}
 exports.Suggestion = Suggestion;
 /**
  * This is the base class add support for a new platform.
  */
-var VoicePlatform = (function () {
-    function VoicePlatform() {
-    }
+class VoicePlatform {
     /**
      * The verify callback, here you can validate the request and optional write a response out in the error case
      * directly. When the implementation returns a promise the response will just be written out in the good case, when
@@ -328,9 +297,27 @@ var VoicePlatform = (function () {
      * @param response
      * @returns {Promise<boolean> | boolean}
      */
-    VoicePlatform.prototype.verify = function (request, response) {
+    verify(request, response) {
         return true; // the default implementation accepts all requests.
-    };
-    return VoicePlatform;
-}());
+    }
+}
 exports.VoicePlatform = VoicePlatform;
+/**
+ * Predefined permissions which should be relevant for the most platforms. Check also the documentation of the actual
+ * implementation how to get the requested data.
+ */
+var VoicePermission;
+(function (VoicePermission) {
+    /** The exact position of the user e.g. the GPS position. */
+    VoicePermission[VoicePermission["ExactPosition"] = 0] = "ExactPosition";
+    /** The in the profile saved position of the user mostly the zip code and the country. */
+    VoicePermission[VoicePermission["RegionalPosition"] = 1] = "RegionalPosition";
+    /** The name of the user. */
+    VoicePermission[VoicePermission["UserName"] = 2] = "UserName";
+    // Will be added in a later release for Alexa
+    /** Read the to do list. */
+    //ReadToDos,
+    /** Write the to do list. */
+    //WriteToDos,
+})(VoicePermission = exports.VoicePermission || (exports.VoicePermission = {}));
+//# sourceMappingURL=ChatbotBase.js.map
