@@ -77,6 +77,15 @@ class VoiceAssistant {
         });
         return promise;
     }
+    /**
+     * Request an explicit login, if the target platform has the option to explicit log in the user. The Alexa platform
+     * supports that this feature since version 0.8 the Dialogflow platform (in fact just Actions on Google) since 0.4
+     * and only if the login is not set as mandatory in the Actions on Google console.
+     * @returns {boolean} true if it is possible to request the login.
+     */
+    requestLogin() {
+        return false;
+    }
     logReply(platform, input, output) {
         console.log('> ' + input.message);
         // TODO contact the replies to get two resulting for compatibility with other platforms
