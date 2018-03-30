@@ -1,12 +1,12 @@
 {
   "name": "chatbotbase",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "A simple node.js framework to write chatbots for differnt platforms like Google Home and Amazon Alexa at once.",
   "main": "ChatbotBase.js",
   "types": "ChatbotBase.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "release": "tsc --outdir dist && cp README.md LICENSE package.json dist && cd dist && npm publish"
+    "release": "tsc --outdir tmp/dist && cp README.md LICENSE package.json tmp/dist && cd tmp/dist && npm publish"
   },
   "repository": {
     "type": "git",
