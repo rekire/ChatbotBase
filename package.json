@@ -1,6 +1,6 @@
 {
   "name": "chatbotbase",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "A simple node.js framework to write chatbots for differnt platforms like Google Home and Amazon Alexa at once.",
   "main": "ChatbotBase.js",
   "types": "ChatbotBase.d.ts",
@@ -29,6 +29,6 @@
     "sprintf-js": "^1.1.1"
   },
   "devDependencies": {
-    "@types/node": "^8.10.0"
+    "@types/node": "^8.10.1"
   }
 }
