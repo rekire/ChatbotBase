@@ -70,17 +70,17 @@ export declare abstract class VoiceAssistant {
      */
     protected t(key: string, ...args: any[]): string;
     /**
-     * Defines a plain text message as response. Should be handled by all platforms.
+     * Defines a text message as response. Should be handled by all platforms.
      * @param {string} message the plain text message.
      * @returns {Reply} the message object which should be added to the output.
      */
-    protected plainReply(message: string): Reply;
+    protected textReply(message: string): Reply;
     /**
-     * Defines a formatted text message as response. Should be handled by all platforms.
+     * Defines a SSML formatted message as response. Should be handled by all platforms.
      * @param {string} message the formatted text message.
      * @returns {Reply} the message object which should be added to the output.
      */
-    protected formattedReply(message: string): Reply;
+    protected voiceReply(message: string): Reply;
     /**
      * Creat a plain text suggestion for supported platforms.
      * @param {string} label The label to click on.
@@ -178,7 +178,7 @@ export declare class Output extends IOMessage {
      */
     constructor(id: string, userId: string, sessionId: string, platform: string, language: string, intent: string, message: string, context: Context);
     /**
-     * Add a reply to the output. Should be at least VoiceAssistant.plainReply().
+     * Add a reply to the output. Should be at least VoiceAssistant.textReply().
      * @param {Reply} reply The reply you want to add.
      */
     addReply(reply: Reply): void;

@@ -100,7 +100,7 @@ export abstract class VoiceAssistant {
         });
         promise.then((output) => {
             output.replies.forEach((reply) => {
-                if(reply.type === 'plain' && reply.platform === '*') {
+                if(reply.type === 'text' && reply.platform === '*') {
                     output.message = reply.render();
                 }
             });
@@ -171,28 +171,28 @@ export abstract class VoiceAssistant {
     }
 
     /**
-     * Defines a plain text message as response. Should be handled by all platforms.
+     * Defines a text message as response. Should be handled by all platforms.
      * @param {string} message the plain text message.
      * @returns {Reply} the message object which should be added to the output.
      */
-    protected plainReply(message: string): Reply {
-        return <Reply>{
+    protected textReply(message: string): Reply {
+        return {
             platform: '*',
-            type: 'plain',
+            type: 'text',
             render: () => message,
             debug: () => message
         };
     }
 
     /**
-     * Defines a formatted text message as response. Should be handled by all platforms.
+     * Defines a SSML formatted message as response. Should be handled by all platforms.
      * @param {string} message the formatted text message.
      * @returns {Reply} the message object which should be added to the output.
      */
-    protected formattedReply(message: string): Reply {
-        return <Reply>{
+    protected voiceReply(message: string): Reply {
+        return {
             platform: '*',
-            type: 'formatted',
+            type: 'ssml',
             render: () => message,
             debug: () => message
         };
@@ -353,7 +353,7 @@ export class Output extends IOMessage {
     }
 
     /**
-     * Add a reply to the output. Should be at least VoiceAssistant.plainReply().
+     * Add a reply to the output. Should be at least VoiceAssistant.textReply().
      * @param {Reply} reply The reply you want to add.
      */
     addReply(reply: Reply) {
