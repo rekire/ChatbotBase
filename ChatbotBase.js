@@ -1,6 +1,6 @@
 "use strict";
-///<reference path="node_modules/@types/node/index.d.ts"/>
 Object.defineProperty(exports, "__esModule", { value: true });
+const sprintf_js_1 = require("sprintf-js");
 /**
  * The abstract base class for your actual implementation.
  */
@@ -9,6 +9,7 @@ class VoiceAssistant {
      * The constructor loads the translations, platforms and the optional tracker.
      */
     constructor() {
+        this.selectedPlatform = null;
         this.translations = this.loadTranslations();
         this.platforms = this.loadPlatforms();
         this.trackers = this.loadTracker();
@@ -25,40 +26,36 @@ class VoiceAssistant {
     handle(request, response) {
         const rawRequest = request.rawBody;
         const json = request.body;
-        let selectedPlatform = null;
         const promise = new Promise((result, reject) => {
-            this.platforms.forEach(platform => {
-                //console.log(platform.platformId() + " = " + platform.isSupported(json));
-                if (platform.isSupported(json)) {
-                    selectedPlatform = platform;
-                    console.log("Detected platform " + platform.platformId());
-                    const input = platform.parse(json);
-                    const verification = platform.verify({
-                        rawRequest: () => rawRequest,
-                        header: (name) => request.header(name)
-                    }, response);
-                    if (verification === false) {
-                        return;
-                    }
-                    this.trackers.forEach(tracker => tracker.trackInput(input));
-                    this.language = input.language.substr(0, 2);
-                    const reply = this.reply(input);
-                    Promise.all([verification, reply]).then((values) => {
-                        const verificationStatus = values[0];
-                        if (verificationStatus) {
-                            const output = values[1];
-                            this.logReply(platform, input, output);
-                            result(output);
-                        }
-                        else {
-                            reject('Verification failed');
-                        }
-                    }).catch((error) => {
-                        reject(error);
-                    });
+            this.platforms.filter((platform) => platform.isSupported(json)).forEach(platform => {
+                this.selectedPlatform = platform;
+                console.log("Detected platform " + platform.platformId());
+                const input = platform.parse(json);
+                const verification = platform.verify({
+                    rawRequest: () => rawRequest,
+                    header: (name) => request.header(name)
+                }, response);
+                if (verification === false) {
+                    return;
                 }
+                this.trackers.forEach(tracker => tracker.trackInput(input));
+                this.language = input.language.substr(0, 2);
+                const reply = this.reply(input);
+                Promise.all([verification, reply]).then((values) => {
+                    const verificationStatus = values[0];
+                    if (verificationStatus) {
+                        const output = values[1];
+                        this.logReply(platform, input, output);
+                        result(output);
+                    }
+                    else {
+                        reject('Verification failed');
+                    }
+                }).catch((error) => {
+                    reject(error);
+                });
             });
-            if (selectedPlatform === null) {
+            if (this.selectedPlatform === null) {
                 reject('Request not supported');
             }
         });
@@ -69,8 +66,8 @@ class VoiceAssistant {
                 }
             });
             this.trackers.forEach(tracker => tracker.trackOutput(output));
-            if (selectedPlatform !== null) {
-                response.end(JSON.stringify(selectedPlatform.render(output)));
+            if (this.selectedPlatform !== null) {
+                response.end(JSON.stringify(this.selectedPlatform.render(output)));
             }
         }).catch((error) => {
             console.log("CBB-Error: ", error);
@@ -84,7 +81,10 @@ class VoiceAssistant {
      * @returns {boolean} true if it is possible to request the login.
      */
     requestLogin() {
-        return false;
+        if (this.selectedPlatform === null) {
+            return false;
+        }
+        return this.selectedPlatform.requestLogin();
     }
     logReply(platform, input, output) {
         console.log('> ' + input.message);
@@ -113,7 +113,7 @@ class VoiceAssistant {
         }
         const newArg = [translation];
         args.forEach(arg => newArg.push(arg));
-        return VoiceAssistant.sprintf.sprintf.apply(this, newArg);
+        return sprintf_js_1.sprintf.apply(this, newArg);
     }
     /**
      * Defines a text message as response. Should be handled by all platforms.
@@ -154,7 +154,6 @@ class VoiceAssistant {
         };
     }
 }
-VoiceAssistant.sprintf = require('sprintf-js');
 exports.VoiceAssistant = VoiceAssistant;
 /**
  * The abstract base class for input and output messages.

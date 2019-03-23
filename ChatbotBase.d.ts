@@ -1,4 +1,3 @@
-/// <reference path="node_modules/@types/node/index.d.ts" />
 /**
  * The context is basically a map with a string as key holding any possible value.
  */
@@ -25,10 +24,10 @@ export interface Translation {
  * The abstract base class for your actual implementation.
  */
 export declare abstract class VoiceAssistant {
-    private static sprintf;
     protected language: string;
     private trackers;
     private platforms;
+    private selectedPlatform;
     /**
      * The constructor loads the translations, platforms and the optional tracker.
      */
@@ -49,8 +48,8 @@ export declare abstract class VoiceAssistant {
      * and only if the login is not set as mandatory in the Actions on Google console.
      * @returns {boolean} true if it is possible to request the login.
      */
-    requestLogin(): boolean;
-    private logReply(platform, input, output);
+    protected requestLogin(): boolean;
+    private logReply;
     /** Callback to load the supported platforms your implementation. */
     protected abstract loadPlatforms(): VoicePlatform[];
     /** Override this method to choose the tracking platforms you want. By default this is an empty list. */
@@ -207,7 +206,7 @@ export declare enum InputMethod {
     /** The input was made by keyboard. */
     text = 1,
     /** The input was made by touch e.g. via a suggestion or a button on a card. */
-    touch = 2,
+    touch = 2
 }
 /**
  * The base class for any replies.
@@ -282,6 +281,13 @@ export declare abstract class VoicePlatform {
      */
     verify(request: VerifyDataHolder, response: any): Promise<boolean> | boolean;
     /**
+     * Request an explicit login, if the target platform has the option to explicit log in the user. The Alexa platform
+     * supports that this feature since version 0.8 the Dialogflow platform (in fact just Actions on Google) since 0.4
+     * and only if the login is not set as mandatory in the Actions on Google console.
+     * @returns {boolean} true if it is possible to request the login.
+     */
+    abstract requestLogin(): boolean;
+    /**
      * Ask for permission to access some data e.g. the location or the name of the user.
      * @param {string} reason The reason which should been told the user why you are asking for this permission(s).
      * @param {VoicePermission|string|(VoicePermission|string)[]} permissions ask for a predefined VoicePermission or a
@@ -337,5 +343,5 @@ export declare enum VoicePermission {
     /** The in the profile saved position of the user mostly the zip code and the country. */
     RegionalPosition = 1,
     /** The name of the user. */
-    UserName = 2,
+    UserName = 2
 }

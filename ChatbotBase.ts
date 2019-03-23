@@ -1,4 +1,4 @@
-///<reference path="node_modules/@types/node/index.d.ts"/>
+import {sprintf} from 'sprintf-js';
 
 /**
  * The context is basically a map with a string as key holding any possible value.
@@ -29,10 +29,10 @@ export interface Translation {
  * The abstract base class for your actual implementation.
  */
 export abstract class VoiceAssistant {
-    private static sprintf = require('sprintf-js');
     protected language: string;
     private trackers: TrackingProvider[];
     private platforms: VoicePlatform[];
+    private selectedPlatform: VoicePlatform | null = null;
 
     /**
      * The constructor loads the translations, platforms and the optional tracker.
@@ -55,46 +55,42 @@ export abstract class VoiceAssistant {
     public handle(request: any, response: any): Promise<Reply> {
         const rawRequest = request.rawBody;
         const json = request.body;
-        let selectedPlatform: VoicePlatform | null = null;
         const promise = new Promise<any>((result, reject) => {
-            this.platforms.forEach(platform => {
-                //console.log(platform.platformId() + " = " + platform.isSupported(json));
-                if(platform.isSupported(json)) {
-                    selectedPlatform = platform;
+            this.platforms.filter((platform) => platform.isSupported(json)).forEach(platform => {
+                this.selectedPlatform = platform;
 
-                    console.log("Detected platform " + platform.platformId());
-                    const input = platform.parse(json);
+                console.log("Detected platform " + platform.platformId());
+                const input = platform.parse(json);
 
-                    const verification = platform.verify(<VerifyDataHolder>{
-                        rawRequest: () => rawRequest,
-                        header: (name) => request.header(name)
-                    }, response);
+                const verification = platform.verify(<VerifyDataHolder>{
+                    rawRequest: () => rawRequest,
+                    header: (name) => request.header(name)
+                }, response);
 
-                    if(verification === false) {
-                        return;
-                    }
-
-                    this.trackers.forEach(tracker => tracker.trackInput(input));
-
-                    this.language = input.language.substr(0, 2);
-
-                    const reply = this.reply(input);
-
-                    Promise.all([verification, reply]).then((values) => {
-                        const verificationStatus = values[0];
-                        if(verificationStatus) {
-                            const output = values[1];
-                            this.logReply(platform, input, output);
-                            result(output);
-                        } else {
-                            reject('Verification failed');
-                        }
-                    }).catch((error) => {
-                        reject(error);
-                    });
+                if(verification === false) {
+                    return;
                 }
+
+                this.trackers.forEach(tracker => tracker.trackInput(input));
+
+                this.language = input.language.substr(0, 2);
+
+                const reply = this.reply(input);
+
+                Promise.all([verification, reply]).then((values) => {
+                    const verificationStatus = values[0];
+                    if(verificationStatus) {
+                        const output = values[1];
+                        this.logReply(platform, input, output);
+                        result(output);
+                    } else {
+                        reject('Verification failed');
+                    }
+                }).catch((error) => {
+                    reject(error);
+                });
             });
-            if(selectedPlatform === null) {
+            if(this.selectedPlatform === null) {
                 reject('Request not supported');
             }
         });
@@ -105,8 +101,8 @@ export abstract class VoiceAssistant {
                 }
             });
             this.trackers.forEach(tracker => tracker.trackOutput(output));
-            if(selectedPlatform !== null) {
-                response.end(JSON.stringify(selectedPlatform.render(output)));
+            if(this.selectedPlatform !== null) {
+                response.end(JSON.stringify(this.selectedPlatform.render(output)));
             }
         }).catch((error) => {
             console.log("CBB-Error: ", error)
@@ -120,8 +116,11 @@ export abstract class VoiceAssistant {
      * and only if the login is not set as mandatory in the Actions on Google console.
      * @returns {boolean} true if it is possible to request the login.
      */
-    public requestLogin() : boolean {
-        return false;
+    protected requestLogin(): boolean {
+        if(this.selectedPlatform === null) {
+            return false;
+        }
+        return this.selectedPlatform.requestLogin();
     }
 
     private logReply(platform: VoicePlatform, input: Input, output: Output) {
@@ -167,7 +166,7 @@ export abstract class VoiceAssistant {
         }
         const newArg = [translation];
         args.forEach(arg => newArg.push(arg));
-        return VoiceAssistant.sprintf.sprintf.apply(this, newArg);
+        return sprintf.apply(this, newArg);
     }
 
     /**
@@ -481,6 +480,14 @@ export abstract class VoicePlatform {
     verify(request: VerifyDataHolder, response: any): Promise<boolean> | boolean {
         return true; // the default implementation accepts all requests.
     }
+
+    /**
+     * Request an explicit login, if the target platform has the option to explicit log in the user. The Alexa platform
+     * supports that this feature since version 0.8 the Dialogflow platform (in fact just Actions on Google) since 0.4
+     * and only if the login is not set as mandatory in the Actions on Google console.
+     * @returns {boolean} true if it is possible to request the login.
+     */
+    abstract requestLogin(): boolean;
 
     /**
      * Ask for permission to access some data e.g. the location or the name of the user.
