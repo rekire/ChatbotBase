@@ -1,8 +1,8 @@
 # ChatbotBase
-A simple node.js framework to write chatbots for differnt platforms like Google Home and Amazon Alexa at once.
+A modular node.js framework to write chatbots for different platforms like Google Home and Amazon Alexa at once.
 
-  [![NPM Version][npm-image]][npm-url]
-  [![NPM Downloads][downloads-image]][downloads-url]
+[![NPM Version][npm-image]][npm-url]
+[![NPM Downloads][downloads-image]][downloads-url]
   
 ## Usage
 
@@ -89,6 +89,7 @@ Currently there are implementation the following tracker:
 * Tests
 * Coverage
 * Wiki how to create own platforms/tracking provider
+* Integration of [Konversation]
 
 ## License
   [Apache 2.0](LICENSE)
@@ -107,3 +108,4 @@ Currently there are implementation the following tracker:
 [chatbaseplugin]: https://github.com/rekire/ChatbotBase-ChatbasePlugin
 [chatbaseplugin-npm]: https://npmjs.org/package/chatbotbase-chatbaseplugin
 [chatbaseplugin-version]: https://img.shields.io/npm/v/chatbotbase-chatbaseplugin.svg
+[Konversation]: https://github.com/rewe-digital-incubator/Konversation
