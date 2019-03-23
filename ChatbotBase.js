@@ -322,10 +322,9 @@ var VoicePermission;
     VoicePermission[VoicePermission["RegionalPosition"] = 1] = "RegionalPosition";
     /** The name of the user. */
     VoicePermission[VoicePermission["UserName"] = 2] = "UserName";
-    // Will be added in a later release for Alexa
     /** Read the to do list. */
-    //ReadToDos,
+    VoicePermission[VoicePermission["ReadToDos"] = 3] = "ReadToDos";
     /** Write the to do list. */
-    //WriteToDos,
+    VoicePermission[VoicePermission["WriteToDos"] = 4] = "WriteToDos";
 })(VoicePermission = exports.VoicePermission || (exports.VoicePermission = {}));
 //# sourceMappingURL=ChatbotBase.js.map

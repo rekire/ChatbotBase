@@ -303,8 +303,6 @@ export declare abstract class VoicePlatform {
 export interface TrackingProvider {
     /** The name of the tracking interface */
     name: string;
-    /** @deprecated */
-    logging: boolean;
     /**
      * Track an input message.
      * @param {Input} input The input message to be tracked.
@@ -343,5 +341,9 @@ export declare enum VoicePermission {
     /** The in the profile saved position of the user mostly the zip code and the country. */
     RegionalPosition = 1,
     /** The name of the user. */
-    UserName = 2
+    UserName = 2,
+    /** Read the to do list. */
+    ReadToDos = 3,
+    /** Write the to do list. */
+    WriteToDos = 4
 }

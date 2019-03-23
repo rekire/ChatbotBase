@@ -506,8 +506,6 @@ export abstract class VoicePlatform {
 export interface TrackingProvider {
     /** The name of the tracking interface */
     name: string;
-    /** @deprecated */
-    logging: boolean;
 
     /**
      * Track an input message.
@@ -552,9 +550,8 @@ export enum VoicePermission {
     RegionalPosition,
     /** The name of the user. */
     UserName,
-    // Will be added in a later release for Alexa
     /** Read the to do list. */
-    //ReadToDos,
+    ReadToDos,
     /** Write the to do list. */
-    //WriteToDos,
+    WriteToDos,
 }
