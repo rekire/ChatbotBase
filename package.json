@@ -1,7 +1,7 @@
 {
   "name": "chatbotbase",
-  "version": "0.6.4",
-  "description": "A simple node.js framework to write chatbots for differnt platforms like Google Home and Amazon Alexa at once.",
+  "version": "1.0.0",
+  "description": "A modular node.js framework to write chatbots for different platforms like Google Home and Amazon Alexa at once.",
   "main": "ChatbotBase.js",
   "types": "ChatbotBase.d.ts",
   "scripts": {
@@ -17,7 +17,10 @@
     "alexa",
     "actions-on-google",
     "google-home",
-    "google-assistant"
+    "google-assistant",
+    "voice-assistant",
+    "voice-app",
+    "voice-application"
   ],
   "author": "René Kilczan <npm@reki.re>",
   "license": "Apache-2.0",
@@ -26,9 +29,9 @@
   },
   "homepage": "https://github.com/rekire/ChatbotBase#readme",
   "dependencies": {
-    "sprintf-js": "^1.1.1"
+    "sprintf-js": "^1.1.2"
   },
   "devDependencies": {
-    "@types/node": "^8.10.1"
+    "typescript": "^3.3.3333"
   }
 }
