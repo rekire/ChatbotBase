@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const sprintf_js_1 = require("sprintf-js");
 const fs = require("fs");
+const path = require("path");
 /**
  * The abstract base class for your actual implementation.
  */
@@ -79,7 +80,7 @@ class VoiceAssistant {
             }
         }).catch((error) => {
             console.log("CBB-Error: ", error);
-            response.end(JSON.stringify({ error }));
+            response.end(JSON.stringify({ error: error.toString() }));
         });
         return promise;
     }
@@ -112,7 +113,7 @@ class VoiceAssistant {
         fs.readdir("intents", (err, files) => {
             files.forEach(file => {
                 if (file.endsWith(".js")) {
-                    intents.push(require(file));
+                    intents.push(require(path.resolve(`./intents/${file}`)));
                 }
             });
         });

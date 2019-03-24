@@ -1,5 +1,6 @@
 import {sprintf} from 'sprintf-js';
 import * as fs from 'fs';
+import * as path from 'path';
 declare function require(file: string): IntentHandler
 
 /**
@@ -115,7 +116,7 @@ export abstract class VoiceAssistant {
             }
         }).catch((error) => {
             console.log("CBB-Error: ", error);
-            response.end(JSON.stringify({error}));
+            response.end(JSON.stringify({error: error.toString()}));
         });
         return promise;
     }
@@ -158,7 +159,7 @@ export abstract class VoiceAssistant {
         fs.readdir("intents", (err, files) => {
             files.forEach(file => {
                 if(file.endsWith(".js")) {
-                    intents.push(require(file));
+                    intents.push(require(path.resolve(`./intents/${file}`)));
                 }
             });
         });
