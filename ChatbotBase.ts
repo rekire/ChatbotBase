@@ -1,4 +1,6 @@
 import {sprintf} from 'sprintf-js';
+import * as fs from 'fs';
+declare function require(file: string): IntentHandler
 
 /**
  * The context is basically a map with a string as key holding any possible value.
@@ -33,14 +35,16 @@ export abstract class VoiceAssistant {
     private trackers: TrackingProvider[];
     private platforms: VoicePlatform[];
     private selectedPlatform: VoicePlatform | null = null;
+    private intentHandlers: IntentHandler[];
 
     /**
      * The constructor loads the translations, platforms and the optional tracker.
      */
-    constructor() {
+    protected constructor() {
         this.translations = this.loadTranslations();
         this.platforms = this.loadPlatforms();
         this.trackers = this.loadTracker();
+        this.intentHandlers = this.searchIntentHandlers();
     }
 
     /**
@@ -75,8 +79,13 @@ export abstract class VoiceAssistant {
 
                 this.language = input.language.substr(0, 2);
 
-                const reply = this.reply(input);
-
+                let reply = this.createFallbackReply(input);
+                if(this.intentHandlers.length) {
+                    const handler = this.intentHandlers.find(handler => handler.isSupported(input));
+                    if(handler) {
+                        reply = handler.createOutput(input, input.reply());
+                    }
+                }
                 Promise.all([verification, reply]).then((values) => {
                     const verificationStatus = values[0];
                     if(verificationStatus) {
@@ -105,18 +114,17 @@ export abstract class VoiceAssistant {
                 response.end(JSON.stringify(this.selectedPlatform.render(output)));
             }
         }).catch((error) => {
-            console.log("CBB-Error: ", error)
+            console.log("CBB-Error: ", error);
+            response.end(JSON.stringify({error}));
         });
         return promise;
     }
 
     /**
-     * Request an explicit login, if the target platform has the option to explicit log in the user. The Alexa platform
-     * supports that this feature since version 0.8 the Dialogflow platform (in fact just Actions on Google) since 0.4
-     * and only if the login is not set as mandatory in the Actions on Google console.
-     * @returns {boolean} true if it is possible to request the login.
+     * Request an explicit login, if the target platform has the option to explicit log in the user.
+     * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
      */
-    protected requestLogin(): boolean {
+    protected requestLogin(): Reply | boolean {
         if(this.selectedPlatform === null) {
             return false;
         }
@@ -145,13 +153,25 @@ export abstract class VoiceAssistant {
     /** Callback to load the translations. */
     protected abstract loadTranslations(): Translations
 
+    private searchIntentHandlers() : IntentHandler[] {
+        const intents : IntentHandler[] = [];
+        fs.readdir("intents", (err, files) => {
+            files.forEach(file => {
+                if(file.endsWith(".js")) {
+                    intents.push(require(file));
+                }
+            });
+        });
+        return intents;
+    }
+
     /**
      * This function generates the output message which will be used for rendering the output and the tracking providers.
      */
-    public abstract reply(input: Input): Output | Promise<Output>;
+    public abstract createFallbackReply(input: Input): Output | Promise<Output>;
 
     // Translations support
-    private translations: Translations;
+    private readonly translations: Translations;
 
     /**
      * This translates a key to the actual translation filling their argument if any.
@@ -482,12 +502,10 @@ export abstract class VoicePlatform {
     }
 
     /**
-     * Request an explicit login, if the target platform has the option to explicit log in the user. The Alexa platform
-     * supports that this feature since version 0.8 the Dialogflow platform (in fact just Actions on Google) since 0.4
-     * and only if the login is not set as mandatory in the Actions on Google console.
-     * @returns {boolean} true if it is possible to request the login.
+     * Request an explicit login, if the target platform has the option to explicit log in the user.
+     * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
      */
-    abstract requestLogin(): boolean;
+    abstract requestLogin(): Reply | boolean;
 
     /**
      * Ask for permission to access some data e.g. the location or the name of the user.
@@ -554,4 +572,9 @@ export enum VoicePermission {
     ReadToDos,
     /** Write the to do list. */
     WriteToDos,
+}
+
+export interface IntentHandler {
+    isSupported(input: Input): boolean
+    createOutput(input: Input, output: Output): Output | Promise<Output>
 }

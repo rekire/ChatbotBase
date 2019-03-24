@@ -28,10 +28,11 @@ export declare abstract class VoiceAssistant {
     private trackers;
     private platforms;
     private selectedPlatform;
+    private intentHandlers;
     /**
      * The constructor loads the translations, platforms and the optional tracker.
      */
-    constructor();
+    protected constructor();
     /**
      * The handler of the platform, this will render all replies, suggestions and send the platform specific response
      * out. This will also invoke the trackers async using a promise.
@@ -43,12 +44,10 @@ export declare abstract class VoiceAssistant {
      */
     handle(request: any, response: any): Promise<Reply>;
     /**
-     * Request an explicit login, if the target platform has the option to explicit log in the user. The Alexa platform
-     * supports that this feature since version 0.8 the Dialogflow platform (in fact just Actions on Google) since 0.4
-     * and only if the login is not set as mandatory in the Actions on Google console.
-     * @returns {boolean} true if it is possible to request the login.
+     * Request an explicit login, if the target platform has the option to explicit log in the user.
+     * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
      */
-    protected requestLogin(): boolean;
+    protected requestLogin(): Reply | boolean;
     private logReply;
     /** Callback to load the supported platforms your implementation. */
     protected abstract loadPlatforms(): VoicePlatform[];
@@ -56,11 +55,12 @@ export declare abstract class VoiceAssistant {
     protected loadTracker(): TrackingProvider[];
     /** Callback to load the translations. */
     protected abstract loadTranslations(): Translations;
+    private searchIntentHandlers;
     /**
      * This function generates the output message which will be used for rendering the output and the tracking providers.
      */
-    abstract reply(input: Input): Output | Promise<Output>;
-    private translations;
+    abstract createFallbackReply(input: Input): Output | Promise<Output>;
+    private readonly translations;
     /**
      * This translates a key to the actual translation filling their argument if any.
      * @param {string} key The key of the translation.
@@ -281,12 +281,10 @@ export declare abstract class VoicePlatform {
      */
     verify(request: VerifyDataHolder, response: any): Promise<boolean> | boolean;
     /**
-     * Request an explicit login, if the target platform has the option to explicit log in the user. The Alexa platform
-     * supports that this feature since version 0.8 the Dialogflow platform (in fact just Actions on Google) since 0.4
-     * and only if the login is not set as mandatory in the Actions on Google console.
-     * @returns {boolean} true if it is possible to request the login.
+     * Request an explicit login, if the target platform has the option to explicit log in the user.
+     * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
      */
-    abstract requestLogin(): boolean;
+    abstract requestLogin(): Reply | boolean;
     /**
      * Ask for permission to access some data e.g. the location or the name of the user.
      * @param {string} reason The reason which should been told the user why you are asking for this permission(s).
@@ -346,4 +344,8 @@ export declare enum VoicePermission {
     ReadToDos = 3,
     /** Write the to do list. */
     WriteToDos = 4
+}
+export interface IntentHandler {
+    isSupported(input: Input): boolean;
+    createOutput(input: Input, output: Output): Output | Promise<Output>;
 }

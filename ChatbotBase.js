@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const sprintf_js_1 = require("sprintf-js");
+const fs = require("fs");
 /**
  * The abstract base class for your actual implementation.
  */
@@ -13,6 +14,7 @@ class VoiceAssistant {
         this.translations = this.loadTranslations();
         this.platforms = this.loadPlatforms();
         this.trackers = this.loadTracker();
+        this.intentHandlers = this.searchIntentHandlers();
     }
     /**
      * The handler of the platform, this will render all replies, suggestions and send the platform specific response
@@ -40,7 +42,13 @@ class VoiceAssistant {
                 }
                 this.trackers.forEach(tracker => tracker.trackInput(input));
                 this.language = input.language.substr(0, 2);
-                const reply = this.reply(input);
+                let reply = this.createFallbackReply(input);
+                if (this.intentHandlers.length) {
+                    const handler = this.intentHandlers.find(handler => handler.isSupported(input));
+                    if (handler) {
+                        reply = handler.createOutput(input, input.reply());
+                    }
+                }
                 Promise.all([verification, reply]).then((values) => {
                     const verificationStatus = values[0];
                     if (verificationStatus) {
@@ -71,14 +79,13 @@ class VoiceAssistant {
             }
         }).catch((error) => {
             console.log("CBB-Error: ", error);
+            response.end(JSON.stringify({ error }));
         });
         return promise;
     }
     /**
-     * Request an explicit login, if the target platform has the option to explicit log in the user. The Alexa platform
-     * supports that this feature since version 0.8 the Dialogflow platform (in fact just Actions on Google) since 0.4
-     * and only if the login is not set as mandatory in the Actions on Google console.
-     * @returns {boolean} true if it is possible to request the login.
+     * Request an explicit login, if the target platform has the option to explicit log in the user.
+     * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
      */
     requestLogin() {
         if (this.selectedPlatform === null) {
@@ -99,6 +106,17 @@ class VoiceAssistant {
     /** Override this method to choose the tracking platforms you want. By default this is an empty list. */
     loadTracker() {
         return [];
+    }
+    searchIntentHandlers() {
+        const intents = [];
+        fs.readdir("intents", (err, files) => {
+            files.forEach(file => {
+                if (file.endsWith(".js")) {
+                    intents.push(require(file));
+                }
+            });
+        });
+        return intents;
     }
     /**
      * This translates a key to the actual translation filling their argument if any.
