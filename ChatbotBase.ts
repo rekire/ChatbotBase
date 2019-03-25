@@ -80,13 +80,8 @@ export abstract class VoiceAssistant {
 
                 this.language = input.language.substr(0, 2);
 
-                let reply = this.createFallbackReply(input);
-                if(this.intentHandlers.length) {
-                    const handler = this.intentHandlers.find(handler => handler.isSupported(input));
-                    if(handler) {
-                        reply = handler.createOutput(input, input.reply());
-                    }
-                }
+                let reply = this.createReply(input);
+
                 Promise.all([verification, reply]).then((values) => {
                     const verificationStatus = values[0];
                     if(verificationStatus) {
@@ -119,6 +114,16 @@ export abstract class VoiceAssistant {
             response.end(JSON.stringify({error: error.toString()}));
         });
         return promise;
+    }
+
+    private createReply(input: Input): Output | Promise<Output> {
+        if(this.intentHandlers.length) {
+            const handler = this.intentHandlers.find(handler => handler.isSupported(input));
+            if(handler) {
+                return handler.createOutput(input, input.reply());
+            }
+        }
+        return this.createFallbackReply(input);
     }
 
     /**
@@ -156,13 +161,12 @@ export abstract class VoiceAssistant {
 
     private searchIntentHandlers() : IntentHandler[] {
         const intents : IntentHandler[] = [];
-        fs.readdir("intents", (err, files) => {
-            files.forEach(file => {
+        fs.readdirSync("intents").forEach(file => {
                 if(file.endsWith(".js")) {
-                    intents.push(require(path.resolve(`./intents/${file}`)));
+                    const name = file.substring(0, file.length - 3);
+                    intents.push(new (require(path.resolve(`./intents/${name}`))[name]));
                 }
             });
-        });
         return intents;
     }
 

@@ -43,13 +43,7 @@ class VoiceAssistant {
                 }
                 this.trackers.forEach(tracker => tracker.trackInput(input));
                 this.language = input.language.substr(0, 2);
-                let reply = this.createFallbackReply(input);
-                if (this.intentHandlers.length) {
-                    const handler = this.intentHandlers.find(handler => handler.isSupported(input));
-                    if (handler) {
-                        reply = handler.createOutput(input, input.reply());
-                    }
-                }
+                let reply = this.createReply(input);
                 Promise.all([verification, reply]).then((values) => {
                     const verificationStatus = values[0];
                     if (verificationStatus) {
@@ -84,6 +78,15 @@ class VoiceAssistant {
         });
         return promise;
     }
+    createReply(input) {
+        if (this.intentHandlers.length) {
+            const handler = this.intentHandlers.find(handler => handler.isSupported(input));
+            if (handler) {
+                return handler.createOutput(input, input.reply());
+            }
+        }
+        return this.createFallbackReply(input);
+    }
     /**
      * Request an explicit login, if the target platform has the option to explicit log in the user.
      * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
@@ -110,12 +113,11 @@ class VoiceAssistant {
     }
     searchIntentHandlers() {
         const intents = [];
-        fs.readdir("intents", (err, files) => {
-            files.forEach(file => {
-                if (file.endsWith(".js")) {
-                    intents.push(require(path.resolve(`./intents/${file}`)));
-                }
-            });
+        fs.readdirSync("intents").forEach(file => {
+            if (file.endsWith(".js")) {
+                const name = file.substring(0, file.length - 3);
+                intents.push(new (require(path.resolve(`./intents/${name}`))[name]));
+            }
         });
         return intents;
     }

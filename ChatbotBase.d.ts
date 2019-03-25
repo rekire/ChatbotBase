@@ -43,6 +43,7 @@ export declare abstract class VoiceAssistant {
      * process life until the tracking code ends.
      */
     handle(request: any, response: any): Promise<Reply>;
+    private createReply;
     /**
      * Request an explicit login, if the target platform has the option to explicit log in the user.
      * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
