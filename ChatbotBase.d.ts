@@ -1,3 +1,4 @@
+export declare type ReplyBuilder<T = {}> = new (...args: any[]) => T;
 /**
  * The context is basically a map with a string as key holding any possible value.
  */
@@ -44,11 +45,6 @@ export declare abstract class VoiceAssistant {
      */
     handle(request: any, response: any): Promise<Reply>;
     private createReply;
-    /**
-     * Request an explicit login, if the target platform has the option to explicit log in the user.
-     * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
-     */
-    protected requestLogin(): Reply | boolean;
     private logReply;
     /** Callback to load the supported platforms your implementation. */
     protected abstract loadPlatforms(): VoicePlatform[];
@@ -69,24 +65,6 @@ export declare abstract class VoiceAssistant {
      * @returns {string} containing the actual string.
      */
     protected t(key: string, ...args: any[]): string;
-    /**
-     * Defines a text message as response. Should be handled by all platforms.
-     * @param {string} message the plain text message.
-     * @returns {Reply} the message object which should be added to the output.
-     */
-    protected textReply(message: string): Reply;
-    /**
-     * Defines a SSML formatted message as response. Should be handled by all platforms.
-     * @param {string} message the formatted text message.
-     * @returns {Reply} the message object which should be added to the output.
-     */
-    protected voiceReply(message: string): Reply;
-    /**
-     * Creat a plain text suggestion for supported platforms.
-     * @param {string} label The label to click on.
-     * @returns {Suggestion}
-     */
-    protected suggestion(label: string): Suggestion;
 }
 /**
  * The abstract base class for input and output messages.
@@ -150,12 +128,6 @@ export declare class Input extends IOMessage {
      * @param {string} accessToken The optional access token of the request.
      */
     constructor(id: string, userId: string, sessionId: string, language: string, platform: string, time: Date, intent: string, inputMethod: InputMethod, message: string, context: Context, accessToken: string);
-    /**
-     * Create the output message based on this input message. This will copy the message id (and adds a ".reply"
-     * suffix), userId, sessionId, platform, language, intent and the context. The message will be set to an empty
-     * string.
-     */
-    reply(): Output;
 }
 /**
  * The output message
@@ -197,6 +169,27 @@ export declare class Output extends IOMessage {
      * @param {boolean} answerExpected
      */
     setExpectAnswer(answerExpected: boolean): void;
+}
+export declare class DefaultReply extends Output {
+    constructor(input: Input);
+    /**
+     * Defines a text message as response. Should be handled by all platforms.
+     * @param {string} message the plain text message.
+     * @returns {Reply} the message object which should be added to the output.
+     */
+    textReply(message: string): Reply;
+    /**
+     * Defines a SSML formatted message as response. Should be handled by all platforms.
+     * @param {string} message the formatted text message.
+     * @returns {Reply} the message object which should be added to the output.
+     */
+    voiceReply(message: string): Reply;
+    /**
+     * Creat a plain text suggestion for supported platforms.
+     * @param {string} label The label to click on.
+     * @returns {Suggestion}
+     */
+    suggestion(label: string): Suggestion;
 }
 /**
  * The input method the user used to start the current intent.
@@ -281,20 +274,6 @@ export declare abstract class VoicePlatform {
      * @returns {Promise<boolean> | boolean}
      */
     verify(request: VerifyDataHolder, response: any): Promise<boolean> | boolean;
-    /**
-     * Request an explicit login, if the target platform has the option to explicit log in the user.
-     * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
-     */
-    abstract requestLogin(): Reply | boolean;
-    /**
-     * Ask for permission to access some data e.g. the location or the name of the user.
-     * @param {string} reason The reason which should been told the user why you are asking for this permission(s).
-     * @param {VoicePermission|string|(VoicePermission|string)[]} permissions ask for a predefined VoicePermission or a
-     * custom string or an array of them which has to been supported by the target platform.
-     * @returns {Reply|undefined} returns the Reply with the permission request on supported platforms or undefined if
-     * there is at least one unsupported permission in the request of the list of permissions is empty.
-     */
-    abstract requestPermission(reason: string, permissions: VoicePermission | string | (VoicePermission | string)[]): Reply | undefined;
 }
 /**
  * Tracking interface of the ChatbotBase.
@@ -348,5 +327,5 @@ export declare enum VoicePermission {
 }
 export interface IntentHandler {
     isSupported(input: Input): boolean;
-    createOutput(input: Input, output: Output): Output | Promise<Output>;
+    createOutput(input: Input): Output | Promise<Output>;
 }

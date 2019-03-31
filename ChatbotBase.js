@@ -82,21 +82,21 @@ class VoiceAssistant {
         if (this.intentHandlers.length) {
             const handler = this.intentHandlers.find(handler => handler.isSupported(input));
             if (handler) {
-                return handler.createOutput(input, input.reply());
+                return handler.createOutput(input);
             }
         }
         return this.createFallbackReply(input);
     }
-    /**
-     * Request an explicit login, if the target platform has the option to explicit log in the user.
-     * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
-     */
-    requestLogin() {
-        if (this.selectedPlatform === null) {
-            return false;
-        }
-        return this.selectedPlatform.requestLogin();
-    }
+    ///**
+    // * Request an explicit login, if the target platform has the option to explicit log in the user.
+    // * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
+    // */
+    //protected requestLogin(): Reply | boolean {
+    //    if(this.selectedPlatform === null) {
+    //        return false;
+    //    }
+    //    return this.selectedPlatform.requestLogin();
+    //}
     logReply(platform, input, output) {
         console.log('> ' + input.message);
         // TODO contact the replies to get two resulting for compatibility with other platforms
@@ -135,44 +135,6 @@ class VoiceAssistant {
         const newArg = [translation];
         args.forEach(arg => newArg.push(arg));
         return sprintf_js_1.sprintf.apply(this, newArg);
-    }
-    /**
-     * Defines a text message as response. Should be handled by all platforms.
-     * @param {string} message the plain text message.
-     * @returns {Reply} the message object which should be added to the output.
-     */
-    textReply(message) {
-        return {
-            platform: '*',
-            type: 'text',
-            render: () => message,
-            debug: () => message
-        };
-    }
-    /**
-     * Defines a SSML formatted message as response. Should be handled by all platforms.
-     * @param {string} message the formatted text message.
-     * @returns {Reply} the message object which should be added to the output.
-     */
-    voiceReply(message) {
-        return {
-            platform: '*',
-            type: 'ssml',
-            render: () => message,
-            debug: () => message
-        };
-    }
-    /**
-     * Creat a plain text suggestion for supported platforms.
-     * @param {string} label The label to click on.
-     * @returns {Suggestion}
-     */
-    suggestion(label) {
-        return {
-            platform: '*',
-            render: () => label,
-            toString: () => label
-        };
     }
 }
 exports.VoiceAssistant = VoiceAssistant;
@@ -229,14 +191,6 @@ class Input extends IOMessage {
         super(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context);
         this.accessToken = accessToken;
     }
-    /**
-     * Create the output message based on this input message. This will copy the message id (and adds a ".reply"
-     * suffix), userId, sessionId, platform, language, intent and the context. The message will be set to an empty
-     * string.
-     */
-    reply() {
-        return new Output(this.id + '.reply', this.userId, this.sessionId, this.platform, this.language, this.intent, "", this.context);
-    }
 }
 exports.Input = Input;
 /**
@@ -290,6 +244,50 @@ class Output extends IOMessage {
     }
 }
 exports.Output = Output;
+class DefaultReply extends Output {
+    constructor(input) {
+        super(input.id, input.userId, input.sessionId, input.platform, input.language, input.intent, input.message, input.context);
+    }
+    /**
+     * Defines a text message as response. Should be handled by all platforms.
+     * @param {string} message the plain text message.
+     * @returns {Reply} the message object which should be added to the output.
+     */
+    textReply(message) {
+        return {
+            platform: '*',
+            type: 'text',
+            render: () => message,
+            debug: () => message
+        };
+    }
+    /**
+     * Defines a SSML formatted message as response. Should be handled by all platforms.
+     * @param {string} message the formatted text message.
+     * @returns {Reply} the message object which should be added to the output.
+     */
+    voiceReply(message) {
+        return {
+            platform: '*',
+            type: 'ssml',
+            render: () => message,
+            debug: () => message
+        };
+    }
+    /**
+     * Creat a plain text suggestion for supported platforms.
+     * @param {string} label The label to click on.
+     * @returns {Suggestion}
+     */
+    suggestion(label) {
+        return {
+            platform: '*',
+            render: () => label,
+            toString: () => label
+        };
+    }
+}
+exports.DefaultReply = DefaultReply;
 /**
  * The input method the user used to start the current intent.
  */

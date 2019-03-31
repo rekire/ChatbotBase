@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 declare function require(file: string): IntentHandler
 
+export type ReplyBuilder<T = {}> = new (...args: any[]) => T;
+
 /**
  * The context is basically a map with a string as key holding any possible value.
  */
@@ -120,22 +122,22 @@ export abstract class VoiceAssistant {
         if(this.intentHandlers.length) {
             const handler = this.intentHandlers.find(handler => handler.isSupported(input));
             if(handler) {
-                return handler.createOutput(input, input.reply());
+                return handler.createOutput(input);
             }
         }
         return this.createFallbackReply(input);
     }
 
-    /**
-     * Request an explicit login, if the target platform has the option to explicit log in the user.
-     * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
-     */
-    protected requestLogin(): Reply | boolean {
-        if(this.selectedPlatform === null) {
-            return false;
-        }
-        return this.selectedPlatform.requestLogin();
-    }
+    ///**
+    // * Request an explicit login, if the target platform has the option to explicit log in the user.
+    // * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
+    // */
+    //protected requestLogin(): Reply | boolean {
+    //    if(this.selectedPlatform === null) {
+    //        return false;
+    //    }
+    //    return this.selectedPlatform.requestLogin();
+    //}
 
     private logReply(platform: VoicePlatform, input: Input, output: Output) {
         console.log('> ' + input.message);
@@ -159,14 +161,14 @@ export abstract class VoiceAssistant {
     /** Callback to load the translations. */
     protected abstract loadTranslations(): Translations
 
-    private searchIntentHandlers() : IntentHandler[] {
-        const intents : IntentHandler[] = [];
+    private searchIntentHandlers(): IntentHandler[] {
+        const intents: IntentHandler[] = [];
         fs.readdirSync("intents").forEach(file => {
-                if(file.endsWith(".js")) {
-                    const name = file.substring(0, file.length - 3);
-                    intents.push(new (require(path.resolve(`./intents/${name}`))[name]));
-                }
-            });
+            if(file.endsWith(".js")) {
+                const name = file.substring(0, file.length - 3);
+                intents.push(new (require(path.resolve(`./intents/${name}`))[name]));
+            }
+        });
         return intents;
     }
 
@@ -192,47 +194,6 @@ export abstract class VoiceAssistant {
         const newArg = [translation];
         args.forEach(arg => newArg.push(arg));
         return sprintf.apply(this, newArg);
-    }
-
-    /**
-     * Defines a text message as response. Should be handled by all platforms.
-     * @param {string} message the plain text message.
-     * @returns {Reply} the message object which should be added to the output.
-     */
-    protected textReply(message: string): Reply {
-        return {
-            platform: '*',
-            type: 'text',
-            render: () => message,
-            debug: () => message
-        };
-    }
-
-    /**
-     * Defines a SSML formatted message as response. Should be handled by all platforms.
-     * @param {string} message the formatted text message.
-     * @returns {Reply} the message object which should be added to the output.
-     */
-    protected voiceReply(message: string): Reply {
-        return {
-            platform: '*',
-            type: 'ssml',
-            render: () => message,
-            debug: () => message
-        };
-    }
-
-    /**
-     * Creat a plain text suggestion for supported platforms.
-     * @param {string} label The label to click on.
-     * @returns {Suggestion}
-     */
-    protected suggestion(label: string) {
-        return <Suggestion>{
-            platform: '*',
-            render: () => label,
-            toString: () => label
-        };
     }
 }
 
@@ -334,15 +295,6 @@ export class Input extends IOMessage {
         super(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context);
         this.accessToken = accessToken;
     }
-
-    /**
-     * Create the output message based on this input message. This will copy the message id (and adds a ".reply"
-     * suffix), userId, sessionId, platform, language, intent and the context. The message will be set to an empty
-     * string.
-     */
-    reply(): Output {
-        return new Output(this.id + '.reply', this.userId, this.sessionId, this.platform, this.language, this.intent, "", this.context)
-    }
 }
 
 /**
@@ -406,6 +358,60 @@ export class Output extends IOMessage {
      */
     setExpectAnswer(answerExpected: boolean) {
         this.expectAnswer = answerExpected;
+    }
+}
+
+export class DefaultReply extends Output {
+    constructor(input: Input) {
+        super(input.id,
+            input.userId,
+            input.sessionId,
+            input.platform,
+            input.language,
+            input.intent,
+            input.message,
+            input.context);
+    }
+
+    /**
+     * Defines a text message as response. Should be handled by all platforms.
+     * @param {string} message the plain text message.
+     * @returns {Reply} the message object which should be added to the output.
+     */
+    textReply(message: string): Reply {
+        return {
+            platform: '*',
+            type: 'text',
+            render: () => message,
+            debug: () => message
+        };
+    }
+
+    /**
+     * Defines a SSML formatted message as response. Should be handled by all platforms.
+     * @param {string} message the formatted text message.
+     * @returns {Reply} the message object which should be added to the output.
+     */
+    voiceReply(message: string): Reply {
+        return {
+            platform: '*',
+            type: 'ssml',
+            render: () => message,
+            debug: () => message
+        };
+    }
+
+    /**
+     * Creat a plain text suggestion for supported platforms.
+     * @param {string} label The label to click on.
+     * @returns {Suggestion}
+     */
+    suggestion(label: string) {
+        return <Suggestion>{
+            platform: '*',
+            render: () => label,
+            toString: () => label
+        };
     }
 }
 
@@ -510,7 +516,7 @@ export abstract class VoicePlatform {
      * Request an explicit login, if the target platform has the option to explicit log in the user.
      * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
      */
-    abstract requestLogin(): Reply | boolean;
+    //abstract requestLogin(): Reply | boolean;
 
     /**
      * Ask for permission to access some data e.g. the location or the name of the user.
@@ -520,7 +526,7 @@ export abstract class VoicePlatform {
      * @returns {Reply|undefined} returns the Reply with the permission request on supported platforms or undefined if
      * there is at least one unsupported permission in the request of the list of permissions is empty.
      */
-    abstract requestPermission(reason: string, permissions: VoicePermission | string | (VoicePermission | string)[]): Reply | undefined;
+    //abstract requestPermission(reason: string, permissions: VoicePermission | string | (VoicePermission | string)[]): Reply | undefined;
 }
 
 /**
@@ -581,5 +587,5 @@ export enum VoicePermission {
 
 export interface IntentHandler {
     isSupported(input: Input): boolean
-    createOutput(input: Input, output: Output): Output | Promise<Output>
+    createOutput(input: Input): Output | Promise<Output>
 }
