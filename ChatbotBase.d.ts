@@ -22,6 +22,31 @@ export interface Translation {
     [key: string]: string | string[];
 }
 /**
+ * Abstraction layer to provide access to translations.
+ */
+export interface TranslationProvider {
+    /**
+     * This translates a key to the actual translation filling their argument if any.
+     * @param input The parsed request, this might be helpful if you want to provide platform specific translations.
+     * @param {string} key The key of the translation.
+     * @param args The var args of the optional variables in the output.
+     * @returns {string} containing the actual string.
+     */
+    getString(input: IOMessage, key: string, ...args: string[] | Translation[]): string | null;
+}
+/**
+ * Simple translation holder, based on the Translations data structure.
+ */
+export declare class MapTranslator implements TranslationProvider {
+    private readonly translations;
+    /**
+     * Creates a new instance of the MapTranslator.
+     * @param translations The actual data you want to provide.
+     */
+    constructor(translations: Translations);
+    getString(input: Input, key: string, ...args: string[]): string | null;
+}
+/**
  * The abstract base class for your actual implementation.
  */
 export declare abstract class VoiceAssistant {
@@ -50,21 +75,14 @@ export declare abstract class VoiceAssistant {
     protected abstract loadPlatforms(): VoicePlatform[];
     /** Override this method to choose the tracking platforms you want. By default this is an empty list. */
     protected loadTracker(): TrackingProvider[];
-    /** Callback to load the translations. */
-    protected abstract loadTranslations(): Translations;
+    /** Callback to create the TranslationProvider. */
+    protected abstract provideTranslations(): TranslationProvider;
     private searchIntentHandlers;
     /**
      * This function generates the output message which will be used for rendering the output and the tracking providers.
      */
     abstract createFallbackReply(input: Input): Output | Promise<Output>;
-    private readonly translations;
-    /**
-     * This translates a key to the actual translation filling their argument if any.
-     * @param {string} key The key of the translation.
-     * @param args The var args of the optional placeholders.
-     * @returns {string} containing the actual string.
-     */
-    protected t(key: string, ...args: any[]): string;
+    protected readonly translations: TranslationProvider;
 }
 /**
  * The abstract base class for input and output messages.
@@ -171,7 +189,8 @@ export declare class Output extends IOMessage {
     setExpectAnswer(answerExpected: boolean): void;
 }
 export declare class DefaultReply extends Output {
-    constructor(input: Input);
+    private readonly translations;
+    constructor(input: Input, translations: TranslationProvider);
     /**
      * Defines a text message as response. Should be handled by all platforms.
      * @param {string} message the plain text message.
@@ -190,6 +209,7 @@ export declare class DefaultReply extends Output {
      * @returns {Suggestion}
      */
     suggestion(label: string): Suggestion;
+    t(key: string, ...args: string[] | Translation[]): string | null;
 }
 /**
  * The input method the user used to start the current intent.
@@ -327,5 +347,5 @@ export declare enum VoicePermission {
 }
 export interface IntentHandler {
     isSupported(input: Input): boolean;
-    createOutput(input: Input): Output | Promise<Output>;
+    createOutput(input: Input, translations: TranslationProvider): Output | Promise<Output>;
 }

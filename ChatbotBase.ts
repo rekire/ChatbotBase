@@ -31,6 +31,45 @@ export interface Translation {
 }
 
 /**
+ * Abstraction layer to provide access to translations.
+ */
+export interface TranslationProvider {
+    /**
+     * This translates a key to the actual translation filling their argument if any.
+     * @param input The parsed request, this might be helpful if you want to provide platform specific translations.
+     * @param {string} key The key of the translation.
+     * @param args The var args of the optional variables in the output.
+     * @returns {string} containing the actual string.
+     */
+    getString(input: IOMessage, key: string, ...args: string[]|Translation[]) : string|null
+}
+
+/**
+ * Simple translation holder, based on the Translations data structure.
+ */
+export class MapTranslator implements TranslationProvider {
+    private readonly translations: Translations;
+
+    /**
+     * Creates a new instance of the MapTranslator.
+     * @param translations The actual data you want to provide.
+     */
+    constructor(translations: Translations) {
+        this.translations = translations;
+    }
+
+    getString(input: Input, key: string, ...args: string[]): string|null {
+        let translation = this.translations[input.language][key];
+        if(translation instanceof Array) {
+            translation = translation[Math.floor(Math.random() * translation.length)]
+        }
+        const newArg = [translation];
+        args.forEach(arg => newArg.push(arg));
+        return sprintf.apply(this, newArg);
+    }
+}
+
+/**
  * The abstract base class for your actual implementation.
  */
 export abstract class VoiceAssistant {
@@ -44,7 +83,7 @@ export abstract class VoiceAssistant {
      * The constructor loads the translations, platforms and the optional tracker.
      */
     protected constructor() {
-        this.translations = this.loadTranslations();
+        this.translations = this.provideTranslations();
         this.platforms = this.loadPlatforms();
         this.trackers = this.loadTracker();
         this.intentHandlers = this.searchIntentHandlers();
@@ -122,22 +161,11 @@ export abstract class VoiceAssistant {
         if(this.intentHandlers.length) {
             const handler = this.intentHandlers.find(handler => handler.isSupported(input));
             if(handler) {
-                return handler.createOutput(input);
+                return handler.createOutput(input, this.translations);
             }
         }
         return this.createFallbackReply(input);
     }
-
-    ///**
-    // * Request an explicit login, if the target platform has the option to explicit log in the user.
-    // * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
-    // */
-    //protected requestLogin(): Reply | boolean {
-    //    if(this.selectedPlatform === null) {
-    //        return false;
-    //    }
-    //    return this.selectedPlatform.requestLogin();
-    //}
 
     private logReply(platform: VoicePlatform, input: Input, output: Output) {
         console.log('> ' + input.message);
@@ -158,8 +186,8 @@ export abstract class VoiceAssistant {
         return []
     }
 
-    /** Callback to load the translations. */
-    protected abstract loadTranslations(): Translations
+    /** Callback to create the TranslationProvider. */
+    protected abstract provideTranslations(): TranslationProvider
 
     private searchIntentHandlers(): IntentHandler[] {
         const intents: IntentHandler[] = [];
@@ -178,23 +206,7 @@ export abstract class VoiceAssistant {
     public abstract createFallbackReply(input: Input): Output | Promise<Output>;
 
     // Translations support
-    private readonly translations: Translations;
-
-    /**
-     * This translates a key to the actual translation filling their argument if any.
-     * @param {string} key The key of the translation.
-     * @param args The var args of the optional placeholders.
-     * @returns {string} containing the actual string.
-     */
-    protected t(key: string, ...args): string {
-        let translation = this.translations[this.language][key];
-        if(translation instanceof Array) {
-            translation = translation[Math.floor(Math.random() * translation.length)]
-        }
-        const newArg = [translation];
-        args.forEach(arg => newArg.push(arg));
-        return sprintf.apply(this, newArg);
-    }
+    protected readonly translations: TranslationProvider;
 }
 
 /**
@@ -362,7 +374,9 @@ export class Output extends IOMessage {
 }
 
 export class DefaultReply extends Output {
-    constructor(input: Input) {
+    private readonly translations: TranslationProvider;
+
+    constructor(input: Input, translations: TranslationProvider) {
         super(input.id,
             input.userId,
             input.sessionId,
@@ -371,6 +385,7 @@ export class DefaultReply extends Output {
             input.intent,
             input.message,
             input.context);
+        this.translations = translations;
     }
 
     /**
@@ -412,6 +427,10 @@ export class DefaultReply extends Output {
             render: () => label,
             toString: () => label
         };
+    }
+
+    t(key: string, ...args: string[]|Translation[]): string|null {
+        return this.translations.getString(this, key, ...args);
     }
 }
 
@@ -587,5 +606,5 @@ export enum VoicePermission {
 
 export interface IntentHandler {
     isSupported(input: Input): boolean
-    createOutput(input: Input): Output | Promise<Output>
+    createOutput(input: Input, translations: TranslationProvider): Output | Promise<Output>
 }

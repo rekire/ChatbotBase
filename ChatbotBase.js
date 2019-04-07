@@ -4,6 +4,28 @@ const sprintf_js_1 = require("sprintf-js");
 const fs = require("fs");
 const path = require("path");
 /**
+ * Simple translation holder, based on the Translations data structure.
+ */
+class MapTranslator {
+    /**
+     * Creates a new instance of the MapTranslator.
+     * @param translations The actual data you want to provide.
+     */
+    constructor(translations) {
+        this.translations = translations;
+    }
+    getString(input, key, ...args) {
+        let translation = this.translations[input.language][key];
+        if (translation instanceof Array) {
+            translation = translation[Math.floor(Math.random() * translation.length)];
+        }
+        const newArg = [translation];
+        args.forEach(arg => newArg.push(arg));
+        return sprintf_js_1.sprintf.apply(this, newArg);
+    }
+}
+exports.MapTranslator = MapTranslator;
+/**
  * The abstract base class for your actual implementation.
  */
 class VoiceAssistant {
@@ -12,7 +34,7 @@ class VoiceAssistant {
      */
     constructor() {
         this.selectedPlatform = null;
-        this.translations = this.loadTranslations();
+        this.translations = this.provideTranslations();
         this.platforms = this.loadPlatforms();
         this.trackers = this.loadTracker();
         this.intentHandlers = this.searchIntentHandlers();
@@ -82,21 +104,11 @@ class VoiceAssistant {
         if (this.intentHandlers.length) {
             const handler = this.intentHandlers.find(handler => handler.isSupported(input));
             if (handler) {
-                return handler.createOutput(input);
+                return handler.createOutput(input, this.translations);
             }
         }
         return this.createFallbackReply(input);
     }
-    ///**
-    // * Request an explicit login, if the target platform has the option to explicit log in the user.
-    // * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
-    // */
-    //protected requestLogin(): Reply | boolean {
-    //    if(this.selectedPlatform === null) {
-    //        return false;
-    //    }
-    //    return this.selectedPlatform.requestLogin();
-    //}
     logReply(platform, input, output) {
         console.log('> ' + input.message);
         // TODO contact the replies to get two resulting for compatibility with other platforms
@@ -120,21 +132,6 @@ class VoiceAssistant {
             }
         });
         return intents;
-    }
-    /**
-     * This translates a key to the actual translation filling their argument if any.
-     * @param {string} key The key of the translation.
-     * @param args The var args of the optional placeholders.
-     * @returns {string} containing the actual string.
-     */
-    t(key, ...args) {
-        let translation = this.translations[this.language][key];
-        if (translation instanceof Array) {
-            translation = translation[Math.floor(Math.random() * translation.length)];
-        }
-        const newArg = [translation];
-        args.forEach(arg => newArg.push(arg));
-        return sprintf_js_1.sprintf.apply(this, newArg);
     }
 }
 exports.VoiceAssistant = VoiceAssistant;
@@ -245,8 +242,9 @@ class Output extends IOMessage {
 }
 exports.Output = Output;
 class DefaultReply extends Output {
-    constructor(input) {
+    constructor(input, translations) {
         super(input.id, input.userId, input.sessionId, input.platform, input.language, input.intent, input.message, input.context);
+        this.translations = translations;
     }
     /**
      * Defines a text message as response. Should be handled by all platforms.
@@ -285,6 +283,9 @@ class DefaultReply extends Output {
             render: () => label,
             toString: () => label
         };
+    }
+    t(key, ...args) {
+        return this.translations.getString(this, key, ...args);
     }
 }
 exports.DefaultReply = DefaultReply;
