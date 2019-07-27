@@ -29,11 +29,10 @@
   },
   "homepage": "https://github.com/rekire/ChatbotBase#readme",
   "dependencies": {
-    "fs": "0.0.1-security",
     "path": "^0.12.7",
     "sprintf-js": "^1.1.2"
   },
   "devDependencies": {
-    "typescript": "^3.3.3333"
+    "typescript": "^3.5.3"
   }
 }

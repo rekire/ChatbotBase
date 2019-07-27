@@ -4,6 +4,16 @@ const sprintf_js_1 = require("sprintf-js");
 const fs = require("fs");
 const path = require("path");
 /**
+ * A message containing the ssml and display text.
+ */
+class Message {
+    constructor(displayText, ssml) {
+        this.displayText = displayText;
+        this.ssml = ssml;
+    }
+}
+exports.Message = Message;
+/**
  * Simple translation holder, based on the Translations data structure.
  */
 class MapTranslator {
@@ -14,7 +24,7 @@ class MapTranslator {
     constructor(translations) {
         this.translations = translations;
     }
-    getString(input, key, ...args) {
+    getDisplayText(input, key, ...args) {
         let translation = this.translations[input.language][key];
         if (translation instanceof Array) {
             translation = translation[Math.floor(Math.random() * translation.length)];
@@ -22,6 +32,18 @@ class MapTranslator {
         const newArg = [translation];
         args.forEach(arg => newArg.push(arg));
         return sprintf_js_1.sprintf.apply(this, newArg);
+    }
+    getSsml(input, key, ...args) {
+        return "<speak>" + this.getDisplayText(input, key, ...args) + "</speak>";
+    }
+    getMessage(input, key, ...args) {
+        const text = this.getDisplayText(input, key, ...args);
+        if (text) {
+            return new Message(text, "<speak>" + text + "</speak>");
+        }
+        else {
+            return null;
+        }
     }
 }
 exports.MapTranslator = MapTranslator;
@@ -285,7 +307,10 @@ class DefaultReply extends Output {
         };
     }
     t(key, ...args) {
-        return this.translations.getString(this, key, ...args);
+        return this.translations.getDisplayText(this, key, ...args);
+    }
+    createMessage(key, ...args) {
+        return this.translations.getMessage(this, key, ...args);
     }
 }
 exports.DefaultReply = DefaultReply;

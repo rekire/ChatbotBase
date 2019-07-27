@@ -1,6 +1,7 @@
 import {sprintf} from 'sprintf-js';
 import * as fs from 'fs';
 import * as path from 'path';
+
 declare function require(file: string): IntentHandler
 
 export type ReplyBuilder<T = {}> = new (...args: any[]) => T;
@@ -31,17 +32,48 @@ export interface Translation {
 }
 
 /**
+ * A message containing the ssml and display text.
+ */
+export class Message {
+    constructor(displayText: string, ssml: string) {
+        this.displayText = displayText;
+        this.ssml = ssml;
+    }
+
+    displayText: string;
+    ssml: string;
+}
+
+/**
  * Abstraction layer to provide access to translations.
  */
 export interface TranslationProvider {
     /**
-     * This translates a key to the actual translation filling their argument if any.
+     * Returns the DisplayText of the given key, for the locale of the user's request.
      * @param input The parsed request, this might be helpful if you want to provide platform specific translations.
      * @param {string} key The key of the translation.
      * @param args The var args of the optional variables in the output.
      * @returns {string} containing the actual string.
      */
-    getString(input: IOMessage, key: string, ...args: string[]|Translation[]) : string|null
+    getDisplayText(input: IOMessage, key: string, ...args: string[] | Translation[]): string | null
+
+    /**
+     * Returns the SSML-String of the given key, for the locale of the user's request.
+     * @param input The parsed request, this might be helpful if you want to provide platform specific translations.
+     * @param {string} key The key of the translation.
+     * @param args The var args of the optional variables in the output.
+     * @returns {string} containing the actual string.
+     */
+    getSsml(input: IOMessage, key: string, ...args: string[] | Translation[]): string | null
+
+    /**
+     * Returns Message of the given key, for the locale of the user's request.
+     * @param input The parsed request, this might be helpful if you want to provide platform specific translations.
+     * @param {string} key The key of the translation.
+     * @param args The var args of the optional variables in the output.
+     * @returns {string} containing the actual string.
+     */
+    getMessage(input: IOMessage, key: string, ...args: string[] | Translation[]): Message | null
 }
 
 /**
@@ -58,7 +90,7 @@ export class MapTranslator implements TranslationProvider {
         this.translations = translations;
     }
 
-    getString(input: Input, key: string, ...args: string[]): string|null {
+    getDisplayText(input: IOMessage, key: string, ...args: string[]): string | null {
         let translation = this.translations[input.language][key];
         if(translation instanceof Array) {
             translation = translation[Math.floor(Math.random() * translation.length)]
@@ -67,6 +99,20 @@ export class MapTranslator implements TranslationProvider {
         args.forEach(arg => newArg.push(arg));
         return sprintf.apply(this, newArg);
     }
+
+    getSsml(input: IOMessage, key: string, ...args): string | null {
+        return "<speak>" + this.getDisplayText(input, key, ...args) + "</speak>"
+    }
+
+    getMessage(input: IOMessage, key: string, ...args): Message | null {
+        const text = this.getDisplayText(input, key, ...args);
+        if(text) {
+            return new Message(text, "<speak>" + text + "</speak>");
+        } else {
+            return null;
+        }
+    }
+
 }
 
 /**
@@ -429,8 +475,12 @@ export class DefaultReply extends Output {
         };
     }
 
-    t(key: string, ...args: string[]|Translation[]): string|null {
-        return this.translations.getString(this, key, ...args);
+    t(key: string, ...args: string[] | Translation[]): string | null {
+        return this.translations.getDisplayText(this, key, ...args);
+    }
+
+    createMessage(key: string, ...args: string[] | Translation[]): Message | null {
+        return this.translations.getMessage(this, key, ...args);
     }
 }
 
@@ -530,22 +580,6 @@ export abstract class VoicePlatform {
     verify(request: VerifyDataHolder, response: any): Promise<boolean> | boolean {
         return true; // the default implementation accepts all requests.
     }
-
-    /**
-     * Request an explicit login, if the target platform has the option to explicit log in the user.
-     * @returns {Reply | boolean} the `Reply` with the login request or `false` if not supported.
-     */
-    //abstract requestLogin(): Reply | boolean;
-
-    /**
-     * Ask for permission to access some data e.g. the location or the name of the user.
-     * @param {string} reason The reason which should been told the user why you are asking for this permission(s).
-     * @param {VoicePermission|string|(VoicePermission|string)[]} permissions ask for a predefined VoicePermission or a
-     * custom string or an array of them which has to been supported by the target platform.
-     * @returns {Reply|undefined} returns the Reply with the permission request on supported platforms or undefined if
-     * there is at least one unsupported permission in the request of the list of permissions is empty.
-     */
-    //abstract requestPermission(reason: string, permissions: VoicePermission | string | (VoicePermission | string)[]): Reply | undefined;
 }
 
 /**
@@ -606,5 +640,6 @@ export enum VoicePermission {
 
 export interface IntentHandler {
     isSupported(input: Input): boolean
+
     createOutput(input: Input, translations: TranslationProvider): Output | Promise<Output>
 }

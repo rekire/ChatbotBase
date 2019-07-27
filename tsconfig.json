@@ -3,7 +3,7 @@
   "compilerOptions": {
     "moduleResolution": "node",
     "module": "commonjs",
-    "target": "ES2018",
+    "target": "es6",
     "sourceMap": true,
     "experimentalDecorators": true,
     "noImplicitAny": false,
