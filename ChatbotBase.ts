@@ -55,7 +55,7 @@ export interface TranslationProvider {
      * @param args The var args of the optional variables in the output.
      * @returns {string} containing the actual string.
      */
-    getDisplayText(input: IOMessage, key: string, ...args: string[] | Translation[]): string | null
+    getDisplayText(input: IOMessage, key: string, ...args: string[]): string | null
 
     /**
      * Returns the SSML-String of the given key, for the locale of the user's request.
@@ -64,7 +64,7 @@ export interface TranslationProvider {
      * @param args The var args of the optional variables in the output.
      * @returns {string} containing the actual string.
      */
-    getSsml(input: IOMessage, key: string, ...args: string[] | Translation[]): string | null
+    getSsml(input: IOMessage, key: string, ...args: string[]): string | null
 
     /**
      * Returns Message of the given key, for the locale of the user's request.
@@ -73,7 +73,7 @@ export interface TranslationProvider {
      * @param args The var args of the optional variables in the output.
      * @returns {string} containing the actual string.
      */
-    getMessage(input: IOMessage, key: string, ...args: string[] | Translation[]): Message | null
+    getMessage(input: IOMessage, key: string, ...args: string[]): Message | null
 }
 
 /**
@@ -112,7 +112,6 @@ export class MapTranslator implements TranslationProvider {
             return null;
         }
     }
-
 }
 
 /**
@@ -237,12 +236,14 @@ export abstract class VoiceAssistant {
 
     private searchIntentHandlers(): IntentHandler[] {
         const intents: IntentHandler[] = [];
-        fs.readdirSync("intents").forEach(file => {
-            if(file.endsWith(".js")) {
-                const name = file.substring(0, file.length - 3);
-                intents.push(new (require(path.resolve(`./intents/${name}`))[name]));
-            }
-        });
+        if(fs.existsSync("intents")) {
+            fs.readdirSync("intents").forEach(file => {
+                if(file.endsWith(".js")) {
+                    const name = file.substring(0, file.length - 3);
+                    intents.push(new (require(path.resolve(`./intents/${name}`))[name]));
+                }
+            });
+        }
         return intents;
     }
 
@@ -279,6 +280,8 @@ export abstract class IOMessage {
     message: string;
     /** A map of the context for this conversation. */
     context: Context;
+    /** Internal data for the platforms. Each key has to be prefixed to avoid collisions. */
+    internalData = new Map<string, any>();
 
     /**
      * The constructor of the message object.
@@ -358,7 +361,7 @@ export class Input extends IOMessage {
 /**
  * The output message
  */
-export class Output extends IOMessage {
+export abstract class Output extends IOMessage {
     replies: Reply[] = [];
     suggestions: Suggestion[] = [];
     retentionMessage: string;
@@ -375,7 +378,7 @@ export class Output extends IOMessage {
      * @param {string} message The raw message of the user when given.
      * @param {Context} context A map of the context for this conversation.
      */
-    constructor(id: string,
+    protected constructor(id: string,
                 userId: string,
                 sessionId: string,
                 platform: string,
@@ -388,11 +391,10 @@ export class Output extends IOMessage {
 
     /**
      * Add a reply to the output. Should be at least VoiceAssistant.textReply().
-     * @param {Reply} reply The reply you want to add.
+     * @param {Reply | String} reply The reply you want to add, or the translation key.
+     * @param args The arguments with the optional arguments.
      */
-    addReply(reply: Reply) {
-        this.replies.push(reply);
-    }
+    abstract addReply(reply: Reply | string | Message, ...args: string[])
 
     /**
      * Add a suggestion to the output.
@@ -434,32 +436,67 @@ export class DefaultReply extends Output {
         this.translations = translations;
     }
 
+    addReply(reply: Reply | string | Message, ...args) {
+        if(reply instanceof Reply) {
+            this.replies.push(reply);
+        } else if(reply instanceof Message) {
+            this.addTextReply(reply.displayText);
+            this.addVoiceReply(reply.ssml);
+        } else {
+            const allArgs = [<string>reply];
+            args.forEach(arg => allArgs.push(arg));
+            this.addReply(this.addMessage.apply(this, allArgs))
+        }
+    }
+
+    /**
+     * Add a suggestion to the output.
+     * @param {Suggestion} suggestion The suggestion to add.
+     * @param args The var args of the optional variables in the output.
+     */
+    addSuggestion(suggestion: Suggestion | string, ...args) {
+        if(suggestion instanceof Suggestion) {
+            super.addSuggestion(suggestion);
+        } else {
+            const msg = this.createMessage(suggestion, ...args);
+            this.suggestions.push(<Suggestion>{
+                platform: '*',
+                render: () => msg.displayText,
+                toString: () => msg.displayText
+            });
+        }
+    }
+
     /**
      * Defines a text message as response. Should be handled by all platforms.
      * @param {string} message the plain text message.
+     * @param args The var args of the optional variables in the output.
      * @returns {Reply} the message object which should be added to the output.
      */
-    textReply(message: string): Reply {
+    addTextReply(message: string, ...args) {
+        const msg = this.t(message, ...args);
         return {
             platform: '*',
             type: 'text',
-            render: () => message,
-            debug: () => message
+            render: () => msg,
+            debug: () => msg || "<null>"
         };
     }
 
     /**
      * Defines a SSML formatted message as response. Should be handled by all platforms.
      * @param {string} message the formatted text message.
+     * @param args The var args of the optional variables in the output.
      * @returns {Reply} the message object which should be added to the output.
      */
-    voiceReply(message: string): Reply {
-        return {
+    addVoiceReply(message: string, ...args) {
+        const msg = this.createMessage(message, ...args);
+        this.addReply({
             platform: '*',
             type: 'ssml',
-            render: () => message,
-            debug: () => message
-        };
+            render: () => msg.ssml,
+            debug: () => msg.ssml
+        });
     }
 
     /**
@@ -475,12 +512,45 @@ export class DefaultReply extends Output {
         };
     }
 
-    t(key: string, ...args: string[] | Translation[]): string | null {
+    /**
+     * Translate
+     * @param key
+     * @param args The var args of the optional variables in the output.
+     */
+    t(key: string, ...args): string | null {
         return this.translations.getDisplayText(this, key, ...args);
     }
 
-    createMessage(key: string, ...args: string[] | Translation[]): Message | null {
-        return this.translations.getMessage(this, key, ...args);
+    addMessage(key: string, ...args) {
+        this.addReply(this.createMessage(key, ...args));
+    }
+
+    private createMessage(key: string, ...args): Message {
+        let containsMessage = false;
+        const textArgs : string[] = [];
+        const ssmlArgs : string[] = [];
+        args.forEach((val) => {
+            if(val instanceof Message) {
+                containsMessage = true;
+                textArgs.push(val.displayText);
+                ssmlArgs.push(val.ssml.replace(/(^<speak>|<\/speak>$)/g, ""));
+            } else {
+                textArgs.push(val.toString());
+                ssmlArgs.push(val);
+            }
+        });
+        if(containsMessage) {
+            const ssml = this.translations.getSsml(this, key, ...ssmlArgs) || sprintf(key, ssmlArgs);
+            const text = this.translations.getDisplayText(this, key, ...textArgs) || sprintf(key, textArgs);
+            return new Message(text, `<speak>${ssml}</speak>`)
+        } else {
+            return this.translations.getMessage(this, key, ...args) || DefaultReply.applyTextAsMessage(key, args);
+        }
+    }
+
+    private static applyTextAsMessage(key: string, args: string[]) {
+        const text = sprintf(key, ...args);
+        return new Message(text, `<speak>${text}</speak>`);
     }
 }
 

@@ -40,7 +40,7 @@ export interface TranslationProvider {
      * @param args The var args of the optional variables in the output.
      * @returns {string} containing the actual string.
      */
-    getDisplayText(input: IOMessage, key: string, ...args: string[] | Translation[]): string | null;
+    getDisplayText(input: IOMessage, key: string, ...args: string[]): string | null;
     /**
      * Returns the SSML-String of the given key, for the locale of the user's request.
      * @param input The parsed request, this might be helpful if you want to provide platform specific translations.
@@ -48,7 +48,7 @@ export interface TranslationProvider {
      * @param args The var args of the optional variables in the output.
      * @returns {string} containing the actual string.
      */
-    getSsml(input: IOMessage, key: string, ...args: string[] | Translation[]): string | null;
+    getSsml(input: IOMessage, key: string, ...args: string[]): string | null;
     /**
      * Returns Message of the given key, for the locale of the user's request.
      * @param input The parsed request, this might be helpful if you want to provide platform specific translations.
@@ -56,7 +56,7 @@ export interface TranslationProvider {
      * @param args The var args of the optional variables in the output.
      * @returns {string} containing the actual string.
      */
-    getMessage(input: IOMessage, key: string, ...args: string[] | Translation[]): Message | null;
+    getMessage(input: IOMessage, key: string, ...args: string[]): Message | null;
 }
 /**
  * Simple translation holder, based on the Translations data structure.
@@ -134,6 +134,8 @@ export declare abstract class IOMessage {
     message: string;
     /** A map of the context for this conversation. */
     context: Context;
+    /** Internal data for the platforms. Each key has to be prefixed to avoid collisions. */
+    internalData: Map<string, any>;
     /**
      * The constructor of the message object.
      * @param {string} id The identifier of the message which comes from the platform to identify messages thrue the system.
@@ -176,7 +178,7 @@ export declare class Input extends IOMessage {
 /**
  * The output message
  */
-export declare class Output extends IOMessage {
+export declare abstract class Output extends IOMessage {
     replies: Reply[];
     suggestions: Suggestion[];
     retentionMessage: string;
@@ -192,12 +194,13 @@ export declare class Output extends IOMessage {
      * @param {string} message The raw message of the user when given.
      * @param {Context} context A map of the context for this conversation.
      */
-    constructor(id: string, userId: string, sessionId: string, platform: string, language: string, intent: string, message: string, context: Context);
+    protected constructor(id: string, userId: string, sessionId: string, platform: string, language: string, intent: string, message: string, context: Context);
     /**
      * Add a reply to the output. Should be at least VoiceAssistant.textReply().
-     * @param {Reply} reply The reply you want to add.
+     * @param {Reply | String} reply The reply you want to add, or the translation key.
+     * @param args The arguments with the optional arguments.
      */
-    addReply(reply: Reply): void;
+    abstract addReply(reply: Reply | string | Message, ...args: string[]): any;
     /**
      * Add a suggestion to the output.
      * @param {Suggestion} suggestion The suggestion to add.
@@ -217,26 +220,47 @@ export declare class Output extends IOMessage {
 export declare class DefaultReply extends Output {
     private readonly translations;
     constructor(input: Input, translations: TranslationProvider);
+    addReply(reply: Reply | string | Message, ...args: any[]): void;
+    /**
+     * Add a suggestion to the output.
+     * @param {Suggestion} suggestion The suggestion to add.
+     * @param args The var args of the optional variables in the output.
+     */
+    addSuggestion(suggestion: Suggestion | string, ...args: any[]): void;
     /**
      * Defines a text message as response. Should be handled by all platforms.
      * @param {string} message the plain text message.
+     * @param args The var args of the optional variables in the output.
      * @returns {Reply} the message object which should be added to the output.
      */
-    textReply(message: string): Reply;
+    addTextReply(message: string, ...args: any[]): {
+        platform: string;
+        type: string;
+        render: () => string | null;
+        debug: () => string;
+    };
     /**
      * Defines a SSML formatted message as response. Should be handled by all platforms.
      * @param {string} message the formatted text message.
+     * @param args The var args of the optional variables in the output.
      * @returns {Reply} the message object which should be added to the output.
      */
-    voiceReply(message: string): Reply;
+    addVoiceReply(message: string, ...args: any[]): void;
     /**
      * Creat a plain text suggestion for supported platforms.
      * @param {string} label The label to click on.
      * @returns {Suggestion}
      */
     suggestion(label: string): Suggestion;
-    t(key: string, ...args: string[] | Translation[]): string | null;
-    createMessage(key: string, ...args: string[] | Translation[]): Message | null;
+    /**
+     * Translate
+     * @param key
+     * @param args The var args of the optional variables in the output.
+     */
+    t(key: string, ...args: any[]): string | null;
+    addMessage(key: string, ...args: any[]): void;
+    private createMessage;
+    private static applyTextAsMessage;
 }
 /**
  * The input method the user used to start the current intent.

@@ -147,12 +147,14 @@ class VoiceAssistant {
     }
     searchIntentHandlers() {
         const intents = [];
-        fs.readdirSync("intents").forEach(file => {
-            if (file.endsWith(".js")) {
-                const name = file.substring(0, file.length - 3);
-                intents.push(new (require(path.resolve(`./intents/${name}`))[name]));
-            }
-        });
+        if (fs.existsSync("intents")) {
+            fs.readdirSync("intents").forEach(file => {
+                if (file.endsWith(".js")) {
+                    const name = file.substring(0, file.length - 3);
+                    intents.push(new (require(path.resolve(`./intents/${name}`))[name]));
+                }
+            });
+        }
         return intents;
     }
 }
@@ -175,6 +177,8 @@ class IOMessage {
      * @param {Context} context A map of the context for this conversation.
      */
     constructor(id, userId, sessionId, language, platform, time, intent, inputMethod, message, context) {
+        /** Internal data for the platforms. Each key has to be prefixed to avoid collisions. */
+        this.internalData = new Map();
         this.id = id;
         this.userId = userId;
         this.sessionId = sessionId;
@@ -234,13 +238,6 @@ class Output extends IOMessage {
         this.expectAnswer = false;
     }
     /**
-     * Add a reply to the output. Should be at least VoiceAssistant.textReply().
-     * @param {Reply} reply The reply you want to add.
-     */
-    addReply(reply) {
-        this.replies.push(reply);
-    }
-    /**
      * Add a suggestion to the output.
      * @param {Suggestion} suggestion The suggestion to add.
      */
@@ -268,31 +265,67 @@ class DefaultReply extends Output {
         super(input.id, input.userId, input.sessionId, input.platform, input.language, input.intent, input.message, input.context);
         this.translations = translations;
     }
+    addReply(reply, ...args) {
+        if (reply instanceof Reply) {
+            this.replies.push(reply);
+        }
+        else if (reply instanceof Message) {
+            this.addTextReply(reply.displayText);
+            this.addVoiceReply(reply.ssml);
+        }
+        else {
+            const allArgs = [reply];
+            args.forEach(arg => allArgs.push(arg));
+            this.addReply(this.addMessage.apply(this, allArgs));
+        }
+    }
+    /**
+     * Add a suggestion to the output.
+     * @param {Suggestion} suggestion The suggestion to add.
+     * @param args The var args of the optional variables in the output.
+     */
+    addSuggestion(suggestion, ...args) {
+        if (suggestion instanceof Suggestion) {
+            super.addSuggestion(suggestion);
+        }
+        else {
+            const msg = this.createMessage(suggestion, ...args);
+            this.suggestions.push({
+                platform: '*',
+                render: () => msg.displayText,
+                toString: () => msg.displayText
+            });
+        }
+    }
     /**
      * Defines a text message as response. Should be handled by all platforms.
      * @param {string} message the plain text message.
+     * @param args The var args of the optional variables in the output.
      * @returns {Reply} the message object which should be added to the output.
      */
-    textReply(message) {
+    addTextReply(message, ...args) {
+        const msg = this.t(message, ...args);
         return {
             platform: '*',
             type: 'text',
-            render: () => message,
-            debug: () => message
+            render: () => msg,
+            debug: () => msg || "<null>"
         };
     }
     /**
      * Defines a SSML formatted message as response. Should be handled by all platforms.
      * @param {string} message the formatted text message.
+     * @param args The var args of the optional variables in the output.
      * @returns {Reply} the message object which should be added to the output.
      */
-    voiceReply(message) {
-        return {
+    addVoiceReply(message, ...args) {
+        const msg = this.createMessage(message, ...args);
+        this.addReply({
             platform: '*',
             type: 'ssml',
-            render: () => message,
-            debug: () => message
-        };
+            render: () => msg.ssml,
+            debug: () => msg.ssml
+        });
     }
     /**
      * Creat a plain text suggestion for supported platforms.
@@ -306,11 +339,44 @@ class DefaultReply extends Output {
             toString: () => label
         };
     }
+    /**
+     * Translate
+     * @param key
+     * @param args The var args of the optional variables in the output.
+     */
     t(key, ...args) {
         return this.translations.getDisplayText(this, key, ...args);
     }
+    addMessage(key, ...args) {
+        this.addReply(this.createMessage(key, ...args));
+    }
     createMessage(key, ...args) {
-        return this.translations.getMessage(this, key, ...args);
+        let containsMessage = false;
+        const textArgs = [];
+        const ssmlArgs = [];
+        args.forEach((val) => {
+            if (val instanceof Message) {
+                containsMessage = true;
+                textArgs.push(val.displayText);
+                ssmlArgs.push(val.ssml.replace(/(^<speak>|<\/speak>$)/g, ""));
+            }
+            else {
+                textArgs.push(val.toString());
+                ssmlArgs.push(val);
+            }
+        });
+        if (containsMessage) {
+            const ssml = this.translations.getSsml(this, key, ...ssmlArgs) || sprintf_js_1.sprintf(key, ssmlArgs);
+            const text = this.translations.getDisplayText(this, key, ...textArgs) || sprintf_js_1.sprintf(key, textArgs);
+            return new Message(text, `<speak>${ssml}</speak>`);
+        }
+        else {
+            return this.translations.getMessage(this, key, ...args) || DefaultReply.applyTextAsMessage(key, args);
+        }
+    }
+    static applyTextAsMessage(key, args) {
+        const text = sprintf_js_1.sprintf(key, ...args);
+        return new Message(text, `<speak>${text}</speak>`);
     }
 }
 exports.DefaultReply = DefaultReply;
