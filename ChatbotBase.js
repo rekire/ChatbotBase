@@ -340,12 +340,19 @@ class DefaultReply extends Output {
         };
     }
     /**
-     * Translate
-     * @param key
+     * Create a localized output with all the injected variables.
+     * @param key The key of the translation.
      * @param args The var args of the optional variables in the output.
+     * Please note if the translation is missing or resulting an empty string an Error will be thrown.
      */
     t(key, ...args) {
-        return this.translations.getDisplayText(this, key, ...args);
+        let text = this.translations.getDisplayText(this, key, ...args);
+        if (text) {
+            return text;
+        }
+        else {
+            throw Error(`No translation for key "${key}" found.`);
+        }
     }
     addMessage(key, ...args) {
         this.addReply(this.createMessage(key, ...args));

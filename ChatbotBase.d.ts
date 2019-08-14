@@ -236,7 +236,7 @@ export declare class DefaultReply extends Output {
     addTextReply(message: string, ...args: any[]): {
         platform: string;
         type: string;
-        render: () => string | null;
+        render: () => string;
         debug: () => string;
     };
     /**
@@ -253,11 +253,12 @@ export declare class DefaultReply extends Output {
      */
     suggestion(label: string): Suggestion;
     /**
-     * Translate
-     * @param key
+     * Create a localized output with all the injected variables.
+     * @param key The key of the translation.
      * @param args The var args of the optional variables in the output.
+     * Please note if the translation is missing or resulting an empty string an Error will be thrown.
      */
-    t(key: string, ...args: any[]): string | null;
+    t(key: string, ...args: any[]): string;
     addMessage(key: string, ...args: any[]): void;
     private createMessage;
     private static applyTextAsMessage;
