@@ -34,16 +34,19 @@ class MapTranslator {
         return sprintf_js_1.sprintf.apply(this, newArg);
     }
     getSsml(input, key, ...args) {
-        return "<speak>" + this.getDisplayText(input, key, ...args) + "</speak>";
+        return this.getDisplayText(input, key, ...args);
     }
     getMessage(input, key, ...args) {
         const text = this.getDisplayText(input, key, ...args);
         if (text) {
-            return new Message(text, "<speak>" + text + "</speak>");
+            return new Message(text, text);
         }
         else {
             return null;
         }
+    }
+    hasKey(input, key) {
+        return !!this.translations[input.language][key];
     }
 }
 exports.MapTranslator = MapTranslator;
@@ -264,9 +267,12 @@ class DefaultReply extends Output {
     constructor(input, translations) {
         super(input.id, input.userId, input.sessionId, input.platform, input.language, input.intent, input.message, input.context);
         this.translations = translations;
+        this.internalData = input.internalData;
     }
     addReply(reply, ...args) {
-        if (reply instanceof Reply) {
+        if (!reply)
+            return;
+        if (reply.hasOwnProperty('platform') && reply.hasOwnProperty('type')) {
             this.replies.push(reply);
         }
         else if (reply instanceof Message) {
@@ -304,7 +310,7 @@ class DefaultReply extends Output {
      * @returns {Reply} the message object which should be added to the output.
      */
     addTextReply(message, ...args) {
-        const msg = this.t(message, ...args);
+        const msg = this.createMessage(message, ...args);
         return {
             platform: '*',
             type: 'text',
@@ -358,6 +364,9 @@ class DefaultReply extends Output {
         this.addReply(this.createMessage(key, ...args));
     }
     createMessage(key, ...args) {
+        if (!this.translations.hasKey(this, key)) {
+            return new Message(key, key);
+        }
         let containsMessage = false;
         const textArgs = [];
         const ssmlArgs = [];
@@ -365,7 +374,7 @@ class DefaultReply extends Output {
             if (val instanceof Message) {
                 containsMessage = true;
                 textArgs.push(val.displayText);
-                ssmlArgs.push(val.ssml.replace(/(^<speak>|<\/speak>$)/g, ""));
+                ssmlArgs.push(val.ssml);
             }
             else {
                 textArgs.push(val.toString());
@@ -375,7 +384,7 @@ class DefaultReply extends Output {
         if (containsMessage) {
             const ssml = this.translations.getSsml(this, key, ...ssmlArgs) || sprintf_js_1.sprintf(key, ssmlArgs);
             const text = this.translations.getDisplayText(this, key, ...textArgs) || sprintf_js_1.sprintf(key, textArgs);
-            return new Message(text, `<speak>${ssml}</speak>`);
+            return new Message(text, ssml);
         }
         else {
             return this.translations.getMessage(this, key, ...args) || DefaultReply.applyTextAsMessage(key, args);
@@ -383,7 +392,7 @@ class DefaultReply extends Output {
     }
     static applyTextAsMessage(key, args) {
         const text = sprintf_js_1.sprintf(key, ...args);
-        return new Message(text, `<speak>${text}</speak>`);
+        return new Message(text, text);
     }
 }
 exports.DefaultReply = DefaultReply;

@@ -57,6 +57,12 @@ export interface TranslationProvider {
      * @returns {string} containing the actual string.
      */
     getMessage(input: IOMessage, key: string, ...args: string[]): Message | null;
+    /**
+     * Returns true if there is a translation for the given key.
+     * @param input The parsed request, this might be helpful if you want to provide platform specific translations.
+     * @param {string} key The key of the translation.
+     */
+    hasKey(input: IOMessage, key: string): boolean;
 }
 /**
  * Simple translation holder, based on the Translations data structure.
@@ -71,6 +77,7 @@ export declare class MapTranslator implements TranslationProvider {
     getDisplayText(input: IOMessage, key: string, ...args: string[]): string | null;
     getSsml(input: IOMessage, key: string, ...args: any[]): string | null;
     getMessage(input: IOMessage, key: string, ...args: any[]): Message | null;
+    hasKey(input: IOMessage, key: string): boolean;
 }
 /**
  * The abstract base class for your actual implementation.
@@ -236,8 +243,8 @@ export declare class DefaultReply extends Output {
     addTextReply(message: string, ...args: any[]): {
         platform: string;
         type: string;
-        render: () => string;
-        debug: () => string;
+        render: () => Message;
+        debug: () => Message;
     };
     /**
      * Defines a SSML formatted message as response. Should be handled by all platforms.

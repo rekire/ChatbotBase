@@ -74,6 +74,13 @@ export interface TranslationProvider {
      * @returns {string} containing the actual string.
      */
     getMessage(input: IOMessage, key: string, ...args: string[]): Message | null
+
+    /**
+     * Returns true if there is a translation for the given key.
+     * @param input The parsed request, this might be helpful if you want to provide platform specific translations.
+     * @param {string} key The key of the translation.
+     */
+    hasKey(input: IOMessage, key: string): boolean
 }
 
 /**
@@ -101,16 +108,20 @@ export class MapTranslator implements TranslationProvider {
     }
 
     getSsml(input: IOMessage, key: string, ...args): string | null {
-        return "<speak>" + this.getDisplayText(input, key, ...args) + "</speak>"
+        return this.getDisplayText(input, key, ...args)
     }
 
     getMessage(input: IOMessage, key: string, ...args): Message | null {
         const text = this.getDisplayText(input, key, ...args);
         if(text) {
-            return new Message(text, "<speak>" + text + "</speak>");
+            return new Message(text, text);
         } else {
             return null;
         }
+    }
+
+    hasKey(input: IOMessage, key: string): boolean {
+        return !!this.translations[input.language][key];
     }
 }
 
@@ -434,11 +445,13 @@ export class DefaultReply extends Output {
             input.message,
             input.context);
         this.translations = translations;
+        this.internalData = input.internalData;
     }
 
     addReply(reply: Reply | string | Message, ...args) {
-        if(reply instanceof Reply) {
-            this.replies.push(reply);
+        if(!reply) return;
+        if(reply.hasOwnProperty('platform') && reply.hasOwnProperty('type')) {
+            this.replies.push(<Reply>reply);
         } else if(reply instanceof Message) {
             this.addTextReply(reply.displayText);
             this.addVoiceReply(reply.ssml);
@@ -474,7 +487,7 @@ export class DefaultReply extends Output {
      * @returns {Reply} the message object which should be added to the output.
      */
     addTextReply(message: string, ...args) {
-        const msg = this.t(message, ...args);
+        const msg = this.createMessage(message, ...args);
         return {
             platform: '*',
             type: 'text',
@@ -532,6 +545,9 @@ export class DefaultReply extends Output {
     }
 
     private createMessage(key: string, ...args): Message {
+        if(!this.translations.hasKey(this, key)) {
+            return new Message(key, key)
+        }
         let containsMessage = false;
         const textArgs : string[] = [];
         const ssmlArgs : string[] = [];
@@ -539,7 +555,7 @@ export class DefaultReply extends Output {
             if(val instanceof Message) {
                 containsMessage = true;
                 textArgs.push(val.displayText);
-                ssmlArgs.push(val.ssml.replace(/(^<speak>|<\/speak>$)/g, ""));
+                ssmlArgs.push(val.ssml);
             } else {
                 textArgs.push(val.toString());
                 ssmlArgs.push(val);
@@ -548,7 +564,7 @@ export class DefaultReply extends Output {
         if(containsMessage) {
             const ssml = this.translations.getSsml(this, key, ...ssmlArgs) || sprintf(key, ssmlArgs);
             const text = this.translations.getDisplayText(this, key, ...textArgs) || sprintf(key, textArgs);
-            return new Message(text, `<speak>${ssml}</speak>`)
+            return new Message(text, ssml)
         } else {
             return this.translations.getMessage(this, key, ...args) || DefaultReply.applyTextAsMessage(key, args);
         }
@@ -556,7 +572,7 @@ export class DefaultReply extends Output {
 
     private static applyTextAsMessage(key: string, args: string[]) {
         const text = sprintf(key, ...args);
-        return new Message(text, `<speak>${text}</speak>`);
+        return new Message(text, text);
     }
 }
 
