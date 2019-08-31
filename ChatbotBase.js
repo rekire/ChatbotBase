@@ -311,12 +311,12 @@ class DefaultReply extends Output {
      */
     addTextReply(message, ...args) {
         const msg = this.createMessage(message, ...args);
-        return {
+        this.addReply({
             platform: '*',
             type: 'text',
-            render: () => msg,
-            debug: () => msg || "<null>"
-        };
+            render: () => msg.displayText,
+            debug: () => msg.displayText || "<null>"
+        });
     }
     /**
      * Defines a SSML formatted message as response. Should be handled by all platforms.

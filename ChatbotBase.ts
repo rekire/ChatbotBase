@@ -488,12 +488,12 @@ export class DefaultReply extends Output {
      */
     addTextReply(message: string, ...args) {
         const msg = this.createMessage(message, ...args);
-        return {
+        this.addReply({
             platform: '*',
             type: 'text',
-            render: () => msg,
-            debug: () => msg || "<null>"
-        };
+            render: () => msg.displayText,
+            debug: () => msg.displayText || "<null>"
+        });
     }
 
     /**

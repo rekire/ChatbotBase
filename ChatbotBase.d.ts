@@ -240,12 +240,7 @@ export declare class DefaultReply extends Output {
      * @param args The var args of the optional variables in the output.
      * @returns {Reply} the message object which should be added to the output.
      */
-    addTextReply(message: string, ...args: any[]): {
-        platform: string;
-        type: string;
-        render: () => Message;
-        debug: () => Message;
-    };
+    addTextReply(message: string, ...args: any[]): void;
     /**
      * Defines a SSML formatted message as response. Should be handled by all platforms.
      * @param {string} message the formatted text message.
